@@ -6,7 +6,7 @@
     "outDir": ".tsc",
     "rootDir": "."
   },
-  "include": ["alchemy.run.ts"],
+  "include": ["alchemy.run.ts", "stacks/**/*.ts"],
   "references": [
     { "path": "./packages/domain" },
     { "path": "./packages/api" },

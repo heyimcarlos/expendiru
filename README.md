@@ -115,7 +115,44 @@ StyleX variables live in `packages/frontend/src/theme.stylex.ts` (`tokens`). The
 
 ## Next: live Scotia and Wealthsimple
 
-`HouseholdSource` in `packages/backend/src/source.ts` is the port. `HouseholdSource.layer` is the only implementation today: it decodes the fixture. Replace that layer with a client of the Household Finance bot and keep returning `HouseholdSnapshot` from `GET /snapshot`. Extend `SnapshotSource` when the payload is no longer a fixture. Do not put real account numbers in the repo; labels stay placeholders. Auth (so the dashboard is actually private) is a later step, likely Cloudflare Access on the Worker.
+`HouseholdSource` in `packages/backend/src/source.ts` is the port. `HouseholdSource.layer` is the only implementation today: it decodes the fixture. Replace that layer with a client of the Household Finance bot and keep returning `HouseholdSnapshot` from `GET /snapshot`. Extend `SnapshotSource` when the payload is no longer a fixture. Do not put real account numbers in the repo; labels stay placeholders. ## Who can open the deployed app
+
+Cloudflare Access is declared on both the API Worker and the Foldkit site. One allow policy admits only these Google accounts:
+
+- carlos.cruzta@gmail.com
+- mariaeduarda.frdo@gmail.com
+
+The policy is `householdAllowPolicy` in `packages/backend/src/access.ts`. Each Worker gets its own Access application (`access.policies`) so the API and the site are both gated by that same list. `alchemy dev` does not show the login wall. The deployed `workers.dev` URLs do, after Access exists in the account.
+
+Before the first deploy that creates those applications:
+
+1. In the Cloudflare dashboard, open Zero Trust and add the **Google** identity provider. This repo does not create that provider, because it needs a Google OAuth client that is not stored here.
+2. The CI token needs `Access: Apps and Policies Write` (included in `stacks/github.ts`) plus the Workers and Secrets Store permissions Alchemy's CI guide uses for `Cloudflare.state()`.
+
+Anyone else, including other Google accounts, is denied. Do not add emails that are not on that list.
+
+## CI
+
+`.github/workflows/ci.yml` runs on pull requests and on pushes to `main`: `pnpm install --frozen-lockfile`, `pnpm typecheck`, `pnpm lint`, `pnpm test`. Node 22, pnpm 12.9.1.
+
+`.github/workflows/deploy.yml` follows [Alchemy CI](https://alchemy.run/environments/ci/). Pushes to `main` deploy `--stage prod`. Pull requests deploy `--stage pr-<number>` and post a preview comment when `GITHUB_TOKEN` is present. Closing a pull request runs `alchemy destroy` for that stage and refuses to destroy `prod`.
+
+Deploy and destroy no-op until these Actions secrets exist:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+`GITHUB_TOKEN` is provided by Actions and is used for the preview comment.
+
+`stacks/github.ts` can mint that token and write the secrets, once, from an admin Alchemy profile (API token or Global API Key, not OAuth):
+
+```sh
+pnpm exec alchemy profile create admin
+pnpm exec alchemy profile edit --profile admin
+pnpm exec alchemy deploy --config stacks/github.ts --profile admin
+```
+
+That profile can create API tokens. Use it only for this stack. Until it has been deployed, create the two secrets by hand in the GitHub repo settings.
 
 ## Docs followed
 
@@ -126,5 +163,6 @@ StyleX variables live in `packages/frontend/src/theme.stylex.ts` (`tokens`). The
 - [Functions and servers](https://alchemy.run/infrastructure-as-effects/functions-and-servers/) — Effect-native Worker shape
 - [foldkit/foldkit](https://github.com/foldkit/foldkit) and cafe's `FOLDKIT.md` — `defineMessageUnion`, `Command.define`, Story and Scene tests
 - [StyleX unplugin](https://stylexjs.com/docs/api/configuration/unplugin/) and [Vite install](https://stylexjs.com/docs/learn/installation/vite) — `stylex.vite()` appends generated CSS onto `src/styles.css`; dev imports `virtual:stylex:runtime`. `defineVars` lives in `theme.stylex.ts` so StyleX can hash the file.
+- [Alchemy CI](https://alchemy.run/environments/ci/) — preview stages, prod deploy, and destroy on PR close
 - [CAFE](https://ratstack.sh/lore/cafe-stack) — what the four letters mean
 - Package pins match cafe's catalog (`effect@4.0.0`, `alchemy@2.0.0-beta.81`, `foldkit@0.165.0`) plus StyleX `0.19.1`

@@ -258,9 +258,15 @@ importers:
         specifier: 'catalog:'
         version: 4.0.0
     devDependencies:
+      '@oxlint/plugins':
+        specifier: 1.89.0
+        version: 1.89.0
       '@types/node':
         specifier: 'catalog:'
         version: 25.9.9
+      oxlint:
+        specifier: 1.89.0
+        version: 1.89.0
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

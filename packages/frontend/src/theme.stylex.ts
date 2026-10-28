@@ -267,9 +267,12 @@ export const styleAttributes = <Message>(
   result: ReturnType<typeof stylex.props>,
 ): ReadonlyArray<Attribute<Message>> => {
   const className = result.className;
+
   const classAttribute =
     className === undefined || className.length === 0 ? [] : [h.Class(className)];
+
   const inline = result.style;
+
   const styleAttribute =
     inline === undefined
       ? []
@@ -280,5 +283,6 @@ export const styleAttributes = <Message>(
             ),
           ),
         ];
+
   return [...classAttribute, ...styleAttribute];
 };

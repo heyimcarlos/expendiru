@@ -1,4 +1,5 @@
 {
+  "extends": ["../../.oxlintrc.json"],
   "ignorePatterns": ["src/**/*.test.ts"],
   "rules": {
     "no-restricted-imports": [

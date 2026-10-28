@@ -1,6 +1,7 @@
 const nextUnit = (seed: number): readonly [number, number] => {
   const mixed = Math.imul(seed, 48271) % 2147483647;
   const state = mixed <= 0 ? mixed + 2147483646 : mixed;
+
   return [state, (state / 2147483647) * 2 - 1];
 };
 
@@ -13,14 +14,18 @@ const wobble = (seed: number, count: number): ReadonlyArray<number> => {
     if (remaining === 0) {
       return acc;
     }
+
     const [next, unit] = nextUnit(state);
+
     return step(remaining - 1, next, [...acc, unit]);
   };
+
   return step(count, seed, []);
 };
 
 const at = (values: ReadonlyArray<number>, index: number): number => {
   const value = values[index];
+
   return value === undefined ? 0 : value;
 };
 
@@ -41,6 +46,7 @@ export const sketchRectPath = (seed: number): string => {
   const midBottomY = bottom + at(units, 9) * jitter;
   const midLeftX = left + at(units, 10) * jitter;
   const midLeftY = (top + bottom) / 2 + at(units, 11) * jitter;
+
   return [
     `M ${round(left)} ${round(top)}`,
     `Q ${round(midTopX)} ${round(midTopY)} ${round(right)} ${round(top)}`,

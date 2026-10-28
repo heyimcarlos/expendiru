@@ -50,9 +50,11 @@ const standingLabel = (standing: PaceStanding): string => {
   if (standing === "under") {
     return "under pace";
   }
+
   if (standing === "on") {
     return "on pace";
   }
+
   return "over pace";
 };
 
@@ -60,12 +62,15 @@ const bucketTone = (id: PresentedBucket["id"]): PaperTone => {
   if (id === "household") {
     return "blue";
   }
+
   if (id === "together") {
     return "yellow";
   }
+
   if (id === "carlos") {
     return "green";
   }
+
   return "orange";
 };
 
@@ -76,6 +81,7 @@ export const presentHousehold = (
     snapshot.emergencyFund.saved.cents,
     snapshot.emergencyFund.target.cents,
   );
+
   const savedLabel = formatCad(snapshot.emergencyFund.saved.cents);
   const targetLabel = formatCad(snapshot.emergencyFund.target.cents);
 
@@ -88,6 +94,7 @@ export const presentHousehold = (
     savedCaption: `${formatPercent(savedPercent)} of the ${targetLabel} target, as of ${snapshot.asOfLabel}.`,
     cards: snapshot.cards.map((card) => {
       const room = roomLeftCents(card.limit.cents, card.balance.cents);
+
       return {
         id: card.id,
         label: card.label,
@@ -103,7 +110,9 @@ export const presentHousehold = (
         snapshot.dayOfMonth,
         snapshot.daysInMonth,
       );
+
       const standing = paceStanding(bucket.spent.cents, expected);
+
       return {
         id: bucket.id,
         name: bucket.name,

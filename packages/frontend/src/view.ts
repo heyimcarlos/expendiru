@@ -18,12 +18,15 @@ const toneColor = (tone: PaperTone): string => {
   if (tone === "blue") {
     return palette.blue;
   }
+
   if (tone === "green") {
     return palette.green;
   }
+
   if (tone === "yellow") {
     return palette.yellow;
   }
+
   return palette.orange;
 };
 
@@ -31,12 +34,15 @@ const toneFill = (tone: PaperTone) => {
   if (tone === "blue") {
     return styles.fillBlue;
   }
+
   if (tone === "green") {
     return styles.fillGreen;
   }
+
   if (tone === "yellow") {
     return styles.fillYellow;
   }
+
   return styles.fillOrange;
 };
 
@@ -44,9 +50,11 @@ const standingFill = (standing: PaceStanding) => {
   if (standing === "under") {
     return styles.fillGreen;
   }
+
   if (standing === "on") {
     return styles.fillBlue;
   }
+
   return styles.fillRed;
 };
 
@@ -54,9 +62,11 @@ const standingStyle = (standing: PaceStanding) => {
   if (standing === "under") {
     return styles.standingUnder;
   }
+
   if (standing === "on") {
     return styles.standingOn;
   }
+
   return styles.standingOver;
 };
 

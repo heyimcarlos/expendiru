@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/worker.ts"
+    ".": "./src/worker.ts",
+    "./access": "./src/access.ts"
   },
   "scripts": {
     "test": "vitest run",

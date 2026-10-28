@@ -8,4 +8,5 @@ export const Message = defineMessageUnion({
   ClickedReplay: {},
   ClickedRetry: {},
 });
+
 export type Message = typeof Message.Type;

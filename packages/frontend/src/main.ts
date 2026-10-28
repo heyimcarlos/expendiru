@@ -6,8 +6,11 @@ import { Message } from "./message.ts";
 import { Model, Refresh, initialModel } from "./model.ts";
 
 export { LoadSnapshot } from "./command.ts";
+
 export { Message } from "./message.ts";
+
 export { Model, Refresh, initialModel } from "./model.ts";
+
 export { view } from "./view.ts";
 
 type UpdateReturn = Update.Return<Model, Message>;

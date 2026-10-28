@@ -1,0 +1,26 @@
+---
+description: Effect fences for Expendiru. Kitlangton's skill in .cursor/skills/effect wins when these notes disagree with it.
+globs: **/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Effect fences
+
+These are the intents of selected rules from [typeonce-dev/ai-automation](https://github.com/typeonce-dev/ai-automation). They are agent instructions, not a vendored plugin. Foldkit owns UI messages (`defineMessageUnion`, `Message.match`). StyleX owns styles. Do not apply Next.js, Tailwind, XState, or React state-hook rules here.
+
+When this file and `.cursor/skills/effect` disagree, follow the skill.
+
+- **no-ambient-nondeterminism.** Do not call `Date.now`, `Math.random`, or `crypto.randomUUID` inside Effect workflows. Take time from `Clock`, randomness from `Random`, and ids from `Crypto`.
+- **no-banned-type-assertions.** Do not assert to `any`, `never`, or `unknown`. Fix the type or decode with Schema.
+- **no-cascading-layer-provide.** Do not chain `Layer.provide` for independent dependencies. A chain is fine when each layer satisfies a requirement of the previous one. Do not use `Layer.provideMerge` just to silence the type checker.
+- **no-direct-fetch.** Do not call `fetch` in Effect code. Browser calls go through `HttpApiClient`. A future Scotia or Wealthsimple adapter owns its HTTP client at that boundary.
+- **no-disable-validation.** Do not turn Schema validation off. Fix the data or the schema.
+- **no-effect-asvoid.** Do not use `Effect.asVoid` to hide a value. Return an effect whose success type is already `void`.
+- **no-global-json.** Do not call global `JSON.parse` or `JSON.stringify` in Effect code. Decode and encode with Schema.
+- **no-nested-effect-array-methods.** Do not nest `Array.map(Array.map(...))` from `effect/Array` in one expression. `pipe` the steps.
+- **no-nested-layer-provide.** Do not nest `Layer.provide(Layer.provide(...))`. Name each layer.
+- **no-service-option.** Do not use `Effect.serviceOption`. `yield*` the service and provide it.
+- **no-silent-error-swallow.** Do not catch an error and return success with an empty value. The household UI may catch a failed refresh and keep the fixture on screen, and that failure must stay visible as `FailedLoadSnapshot`.
+- **no-static-effect-service-forwarders.** Do not add static methods that secretly call a service. `yield*` `HouseholdSource.Service` at the use site.
+- **no-switch.** Do not use `switch` in Effect code. Use `Match`. Foldkit unions keep `.match`.
+- **no-try-catch.** Do not use `try/catch` in Effect code. Use `Effect.try` or `Effect.tryPromise`. A boundary that must call a throwing API can own that call inside one of those constructors.

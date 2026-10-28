@@ -25,6 +25,7 @@ const loadSnapshot = Effect.fn("Household.loadSnapshot")(
 
     const client = yield* HttpApiClient.make(Api, { baseUrl: apiUrl.value });
     const snapshot = yield* client.Household.getSnapshot();
+
     return Message.LoadedSnapshot({ snapshot });
   },
   (effect) =>

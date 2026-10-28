@@ -4,9 +4,11 @@ export const CanadianDollars = Schema.Struct({
   cents: Schema.Natural,
   currency: Schema.Literals(["CAD"]),
 });
+
 export interface CanadianDollars extends Schema.Schema.Type<typeof CanadianDollars> {}
 
 export const Person = Schema.Literals(["Carlos", "Maria"]);
+
 export type Person = Schema.Schema.Type<typeof Person>;
 
 export const BucketId = Schema.Literals([
@@ -15,9 +17,11 @@ export const BucketId = Schema.Literals([
   "carlos",
   "maria",
 ]);
+
 export type BucketId = Schema.Schema.Type<typeof BucketId>;
 
 export const SnapshotSource = Schema.Literals(["fixture"]);
+
 export type SnapshotSource = Schema.Schema.Type<typeof SnapshotSource>;
 
 export const EmergencyFund = Schema.Struct({
@@ -25,6 +29,7 @@ export const EmergencyFund = Schema.Struct({
   saved: CanadianDollars,
   target: CanadianDollars,
 });
+
 export interface EmergencyFund extends Schema.Schema.Type<typeof EmergencyFund> {}
 
 export const VisaCard = Schema.Struct({
@@ -34,6 +39,7 @@ export const VisaCard = Schema.Struct({
   limit: CanadianDollars,
   balance: CanadianDollars,
 });
+
 export interface VisaCard extends Schema.Schema.Type<typeof VisaCard> {}
 
 export const BudgetBucket = Schema.Struct({
@@ -42,6 +48,7 @@ export const BudgetBucket = Schema.Struct({
   budget: CanadianDollars,
   spent: CanadianDollars,
 });
+
 export interface BudgetBucket extends Schema.Schema.Type<typeof BudgetBucket> {}
 
 export const HouseholdSnapshot = Schema.Struct({
@@ -61,6 +68,7 @@ export const HouseholdSnapshot = Schema.Struct({
     BudgetBucket,
   ]),
 }).annotate({ identifier: "HouseholdSnapshot" });
+
 export interface HouseholdSnapshot extends Schema.Schema.Type<typeof HouseholdSnapshot> {}
 
 export type PaceStanding = "under" | "on" | "over";
@@ -74,6 +82,7 @@ export const formatCad = (cents: number): string => {
   const remainder = absolute % 100;
   const grouped = String(dollars).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   const prefix = negative ? "-$" : "$";
+
   return `${prefix}${grouped}.${String(remainder).padStart(2, "0")}`;
 };
 
@@ -85,6 +94,7 @@ export const paceCents = (
   if (daysInMonth <= 0) {
     return 0;
   }
+
   return Math.round((budgetCents * dayOfMonth) / daysInMonth);
 };
 
@@ -95,6 +105,7 @@ export const paceStanding = (
   if (spentCents === expectedCents) {
     return "on";
   }
+
   return spentCents < expectedCents ? "under" : "over";
 };
 
@@ -105,6 +116,7 @@ export const sharePercent = (part: number, whole: number): number => {
   if (whole <= 0) {
     return 0;
   }
+
   return (part / whole) * 100;
 };
 
@@ -113,6 +125,7 @@ export const cappedPercent = (value: number): number =>
 
 export const formatPercent = (value: number): string => {
   const rounded = Math.round(value * 10) / 10;
+
   return Number.isInteger(rounded) ? `${rounded}%` : `${rounded.toFixed(1)}%`;
 };
 

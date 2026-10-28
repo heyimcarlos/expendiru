@@ -9,7 +9,7 @@
     "destroy": "alchemy destroy",
     "typecheck": "tsc --build",
     "test": "pnpm --recursive test",
-    "lint": "pnpm --recursive lint"
+    "lint": "oxlint alchemy.run.ts stacks && pnpm --recursive lint"
   },
   "dependencies": {
     "@alchemy.run/frontend-frameworks": "catalog:",
@@ -21,7 +21,9 @@
     "effect": "catalog:"
   },
   "devDependencies": {
+    "@oxlint/plugins": "1.89.0",
     "@types/node": "catalog:",
+    "oxlint": "1.89.0",
     "typescript": "catalog:",
     "vite": "catalog:"
   }

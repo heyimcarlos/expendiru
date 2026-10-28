@@ -6,6 +6,7 @@ import * as HttpRouter from "effect/http/HttpRouter";
 import { HttpServerRequest } from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { HttpApiBuilder } from "effect/http-api";
+import { householdAllowPolicy } from "./access.ts";
 import { HouseholdLive } from "./household.ts";
 import { HouseholdSource } from "./source.ts";
 
@@ -27,6 +28,9 @@ export default Cloudflare.Worker(
   {
     main: import.meta.url,
     compatibility: { date: "2026-10-28" },
+    access: {
+      policies: [householdAllowPolicy],
+    },
   },
   Effect.gen(function* () {
     const api = yield* HttpRouter.toHttpEffect(apiLayer);

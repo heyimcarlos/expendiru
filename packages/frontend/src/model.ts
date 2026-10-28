@@ -6,6 +6,7 @@ export const Refresh = defineTaggedUnion({
   Idle: {},
   Failed: { error: Schema.String },
 });
+
 export type Refresh = typeof Refresh.Type;
 
 export const Model = Schema.Struct({
@@ -13,6 +14,7 @@ export const Model = Schema.Struct({
   refresh: Refresh,
   replay: Schema.Number,
 });
+
 export type Model = typeof Model.Type;
 
 export const initialModel = Model.make({
