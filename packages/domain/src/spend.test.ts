@@ -8,9 +8,12 @@ import {
   defaultSpendFilter,
   dollarsToCents,
   merchantBars,
+  monthlyBucketSeries,
+  parseMonthlyByBucketCsv,
   querySpend,
   spendFeedFromWire,
   spendStub,
+  stackSpendCents,
   totalOutflowCents,
 } from "./spend.ts";
 
@@ -233,5 +236,60 @@ describe("spend series", () => {
 
     expect(summed).toBe(totalOutflowCents(rows));
     expect(dailySeries(rows, "2026-10-27", "2026-10-01")).toEqual([]);
+  });
+
+  test("stacks the four budget buckets by month and reads a csv", () => {
+    const series = monthlyBucketSeries(rows, "2026-07-01", "2026-10-27");
+
+    expect(series.map((row) => row.month)).toEqual([
+      "2026-07",
+      "2026-08",
+      "2026-09",
+      "2026-10",
+    ]);
+    expect(series[0]?.together).toBe(1_000);
+    expect(series[3]?.household).toBe(4_210);
+    expect(series[3]?.carlosPersonal).toBe(330);
+    expect(series[3]?.mariaPersonal).toBe(2_850);
+    expect(series.reduce((total, row) => total + stackSpendCents(row), 0)).toBe(14_790);
+
+    const wide = parseMonthlyByBucketCsv(
+      "month,household,together,carlos_personal,maria_personal\n2026-07,10.00,5.50,0,1\n",
+    );
+    const long = parseMonthlyByBucketCsv(
+      "month,budget_bucket,cents\n2026-08,household,250\n2026-08,maria_personal,100\n",
+    );
+
+    expect(wide.ok).toBe(true);
+    if (wide.ok) {
+      expect(wide.rows[0]?.household).toBe(1_000);
+      expect(wide.rows[0]?.together).toBe(550);
+      expect(wide.rows[0]?.mariaPersonal).toBe(100);
+    }
+
+    expect(long.ok).toBe(true);
+    if (long.ok) {
+      expect(long.rows[0]?.household).toBe(250);
+      expect(long.rows[0]?.mariaPersonal).toBe(100);
+    }
+
+    expect(parseMonthlyByBucketCsv("nope").ok).toBe(false);
+  });
+
+  test("the stub carries the Jul–Oct household monthly fixture", () => {
+    const fixture = spendStub.monthlyByBucket ?? [];
+
+    expect(fixture.map((row) => row.month)).toEqual([
+      "2026-07",
+      "2026-08",
+      "2026-09",
+      "2026-10",
+    ]);
+    expect(fixture.reduce((total, row) => total + stackSpendCents(row), 0)).toBe(2_366_829);
+    expect(fixture[3]?.household).toBe(98_862);
+    expect(fixture[3]?.together).toBe(87_619);
+    expect(fixture[3]?.carlosPersonal).toBe(401_153);
+    expect(fixture[3]?.mariaPersonal).toBe(172_006);
+    expect(dollarsToCents(7596.4)).toBe(759_640);
   });
 });

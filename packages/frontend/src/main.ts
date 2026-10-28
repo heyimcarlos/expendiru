@@ -53,6 +53,7 @@ export const update = (model: Model, message: Message) =>
         spendFocus: () => SpendMark.Idle(),
         spendHover: () => SpendMark.Idle(),
         spendHidden: () => [],
+        spendPage: () => 0,
       }),
     }),
     ChangedSpendFilter: ({ filter }) => ({
@@ -60,6 +61,7 @@ export const update = (model: Model, message: Message) =>
         spendFilter: () => filter,
         spendFocus: () => SpendMark.Idle(),
         spendHover: () => SpendMark.Idle(),
+        spendPage: () => 0,
       }),
     }),
     ClickedResetSpend: () => ({
@@ -68,6 +70,7 @@ export const update = (model: Model, message: Message) =>
         spendFocus: () => SpendMark.Idle(),
         spendHover: () => SpendMark.Idle(),
         spendHidden: () => [],
+        spendPage: () => 0,
       }),
     }),
     ClickedRetrySpend: () => ({
@@ -78,6 +81,7 @@ export const update = (model: Model, message: Message) =>
       model: modifyFields(model, {
         spendFocus: (current) =>
           sameSpendMark(current, mark) ? SpendMark.Idle() : mark,
+        spendPage: () => 0,
       }),
     }),
     HoveredSpendMark: ({ mark }) => ({
@@ -94,6 +98,12 @@ export const update = (model: Model, message: Message) =>
       model: modifyFields(model, {
         spendHidden: (hidden) => toggleHidden(hidden, key),
         spendFocus: (focus) => (focusKey(focus) === key ? SpendMark.Idle() : focus),
+        spendPage: () => 0,
+      }),
+    }),
+    ClickedSpendPage: ({ page }) => ({
+      model: modifyFields(model, {
+        spendPage: () => (page < 0 ? 0 : page),
       }),
     }),
   });
@@ -113,6 +123,7 @@ const replaceSpend = (model: Model, feed: SpendFeed): Model => {
     spendFocus: () => SpendMark.Idle(),
     spendHover: () => SpendMark.Idle(),
     spendHidden: () => [],
+    spendPage: () => 0,
   });
 };
 

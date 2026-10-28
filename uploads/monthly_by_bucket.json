@@ -1,0 +1,62 @@
+{
+  "period": {
+    "from": "2026-07",
+    "to": "2026-10"
+  },
+  "buckets": [
+    "household",
+    "together",
+    "carlos_personal",
+    "maria_personal"
+  ],
+  "months": [
+    {
+      "month": "2026-07",
+      "household": 1155.91,
+      "together": 89.81,
+      "carlos_personal": 3412.07,
+      "maria_personal": 1461.45,
+      "total": 6119.24,
+      "household_pct": 18.9,
+      "together_pct": 1.5,
+      "carlos_personal_pct": 55.8,
+      "maria_personal_pct": 23.9
+    },
+    {
+      "month": "2026-08",
+      "household": 829.13,
+      "together": 358.5,
+      "carlos_personal": 1079.78,
+      "maria_personal": 1207.41,
+      "total": 3474.82,
+      "household_pct": 23.9,
+      "together_pct": 10.3,
+      "carlos_personal_pct": 31.1,
+      "maria_personal_pct": 34.7
+    },
+    {
+      "month": "2026-09",
+      "household": 877.77,
+      "together": 1062.89,
+      "carlos_personal": 2941.1,
+      "maria_personal": 1596.07,
+      "total": 6477.83,
+      "household_pct": 13.6,
+      "together_pct": 16.4,
+      "carlos_personal_pct": 45.4,
+      "maria_personal_pct": 24.6
+    },
+    {
+      "month": "2026-10",
+      "household": 988.62,
+      "together": 876.19,
+      "carlos_personal": 4011.53,
+      "maria_personal": 1720.06,
+      "total": 7596.4,
+      "household_pct": 13.0,
+      "together_pct": 11.5,
+      "carlos_personal_pct": 52.8,
+      "maria_personal_pct": 22.6
+    }
+  ]
+}

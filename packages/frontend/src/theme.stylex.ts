@@ -43,6 +43,9 @@ export const tokens = stylex.defineVars({
 export const styles = stylex.create({
   page: {
     minHeight: "100vh",
+    maxWidth: "100%",
+    overflowX: "clip",
+    overflowAnchor: "none",
     color: tokens.ink,
     backgroundColor: tokens.paper,
     fontFamily: tokens.fontBody,
@@ -51,6 +54,7 @@ export const styles = stylex.create({
   },
   shell: {
     maxWidth: "1200px",
+    minWidth: 0,
     marginTop: 0,
     marginRight: "auto",
     marginBottom: 0,
@@ -59,6 +63,11 @@ export const styles = stylex.create({
     paddingRight: "24px",
     paddingBottom: "4px",
     paddingLeft: "24px",
+    "@media (max-width: 720px)": {
+      paddingTop: "20px",
+      paddingRight: "16px",
+      paddingLeft: "16px",
+    },
   },
   eyebrow: {
     margin: 0,
@@ -316,6 +325,10 @@ export const styles = stylex.create({
   },
   personControl: {
     minWidth: "148px",
+    maxWidth: "100%",
+    "@media (max-width: 720px)": {
+      minWidth: "0",
+    },
   },
   fieldLabel: {
     color: tokens.muted,
@@ -353,8 +366,12 @@ export const styles = stylex.create({
     borderStyle: "solid",
     borderColor: tokens.line,
     borderRadius: tokens.radius,
+    overflow: "visible",
     "@media (max-width: 720px)": {
       gridTemplateColumns: "1fr",
+      minHeight: "auto",
+      paddingRight: "12px",
+      paddingLeft: "12px",
     },
   },
   chartStageSolo: {
@@ -365,6 +382,15 @@ export const styles = stylex.create({
     alignItems: "center",
     justifyContent: "center",
     minWidth: 0,
+    width: "100%",
+    overflow: "visible",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    WebkitTapHighlightColor: "transparent",
+  },
+  chartHold: {
+    touchAction: "none",
+    overscrollBehavior: "none",
   },
   chartBars: {
     display: "flex",
@@ -375,17 +401,28 @@ export const styles = stylex.create({
     minHeight: "min(calc(100vh - 320px), 800px)",
   },
   chartPie: {
-    width: "min(calc(100vh - 320px), 100%, 800px)",
+    width: "100%",
+    maxWidth: "min(800px, calc(100vh - 320px))",
     height: "auto",
     aspectRatio: "1",
     display: "block",
+    overflow: "visible",
+    outlineStyle: "none",
+    touchAction: "none",
+    "@media (max-width: 720px)": {
+      maxWidth: "100%",
+    },
   },
   chartLine: {
     width: "100%",
-    height: "min(calc(100vh - 320px), 800px)",
+    height: "auto",
+    aspectRatio: "400 / 260",
+    maxHeight: "min(calc(100vh - 320px), 800px)",
     display: "block",
+    overflow: "visible",
+    outlineStyle: "none",
     "@media (max-width: 720px)": {
-      height: "min(calc(100vh - 360px), 480px)",
+      maxHeight: "none",
     },
   },
   chartEmpty: {
@@ -458,7 +495,12 @@ export const styles = stylex.create({
   barButton: {
     display: "grid",
     width: "100%",
-    gridTemplateColumns: "minmax(120px, 200px) 1fr auto",
+    gridTemplateColumns: "minmax(120px, 200px) minmax(0, 1fr) auto",
+    "@media (max-width: 720px)": {
+      gridTemplateColumns: "minmax(0, 1fr)",
+      gap: "6px",
+      maxHeight: "none",
+    },
     gap: "16px",
     alignItems: "center",
     flex: "1 1 auto",
@@ -528,10 +570,21 @@ export const styles = stylex.create({
   txHeading: {
     marginTop: "28px",
   },
+  txBlock: {
+    minWidth: 0,
+    maxWidth: "100%",
+  },
+  txScroll: {
+    width: "100%",
+    maxWidth: "100%",
+    overflowX: "auto",
+  },
   txTable: {
     width: "100%",
+    maxWidth: "100%",
     borderCollapse: "collapse",
     marginTop: "8px",
+    tableLayout: "fixed",
     textAlign: "left",
   },
   txHead: {
@@ -593,20 +646,37 @@ export const styles = stylex.create({
     color: tokens.ink,
   },
   txDate: {
-    width: "9.5rem",
+    width: "22%",
     fontVariantNumeric: "tabular-nums",
     whiteSpace: "nowrap",
   },
   txNumeric: {
-    width: "8.5rem",
+    width: "22%",
     textAlign: "right",
     fontVariantNumeric: "tabular-nums",
     whiteSpace: "nowrap",
+  },
+  pager: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "8px",
+    marginTop: "12px",
+  },
+  pagerStatus: {
+    color: tokens.muted,
+    fontSize: "13px",
+    fontVariantNumeric: "tabular-nums",
+  },
+  pagerButtonOff: {
+    opacity: 0.4,
+    cursor: "default",
   },
   txMerchant: {
     display: "block",
     fontWeight: 500,
     color: tokens.ink,
+    overflowWrap: "anywhere",
   },
   txMeta: {
     display: "block",
@@ -727,9 +797,17 @@ export const styles = stylex.create({
   },
   mark: {
     cursor: "pointer",
+    outlineStyle: "none",
+    WebkitTapHighlightColor: "transparent",
     transitionProperty: "opacity",
     transitionDuration: "120ms",
     transitionTimingFunction: "ease",
+    ":focus": {
+      outlineStyle: "none",
+    },
+    ":focus-visible": {
+      outlineStyle: "none",
+    },
   },
   markDim: {
     opacity: 0.38,

@@ -4,13 +4,13 @@ import { chartClipInset } from "./chart-clip.ts";
 import { SpendMark } from "./model.ts";
 import {
   barMarks,
-  lineChart,
-  lineChartHeight,
-  lineChartWidth,
   pieCircumference,
   pieRings,
   presentSpend,
   seriesColor,
+  stackChart,
+  stackChartHeight,
+  stackChartWidth,
 } from "./spend-present.ts";
 import { bucketSlices, merchantBars } from "@expendiru/domain";
 import { palette } from "./theme.stylex.ts";
@@ -48,7 +48,7 @@ describe("presentSpend", () => {
     expect(presented.amountError).toBe(false);
   });
 
-  test("draws a symmetrical pie, proportional bars, and an integer line", () => {
+  test("draws a closed donut, proportional bars, and a monthly stack", () => {
     const rings = pieRings(bucketSlices(rows));
     let painted = 0;
 
@@ -57,6 +57,8 @@ describe("presentSpend", () => {
     }
 
     expect(rings[0]?.offset).toBeCloseTo(pieCircumference / 4, 5);
+    expect(rings[0]?.d.startsWith("M 120 31")).toBe(true);
+    expect(rings[0]?.d.endsWith("Z")).toBe(true);
     expect(painted + 2 * rings.length).toBeCloseTo(pieCircumference, 4);
 
     const bars = barMarks(merchantBars(rows, 8));
@@ -71,26 +73,45 @@ describe("presentSpend", () => {
       "line",
     );
 
-    expect(presented.line.points).toHaveLength(119);
-    expect(presented.line.firstDate).toBe("2026-07-01");
-    expect(presented.line.lastDate).toBe("2026-10-27");
-    expect(presented.line.width).toBe(lineChartWidth);
-    expect(presented.line.height).toBe(lineChartHeight);
-    expect(presented.line.points[0]?.x).toBe(16);
-    expect(presented.line.points.at(-1)?.x).toBe(lineChartWidth - 16);
+    expect(presented.chartTitle).toBe("By month");
+    expect(presented.stack.empty).toBe(false);
+    expect(presented.stack.width).toBe(stackChartWidth);
+    expect(presented.stack.height).toBe(stackChartHeight);
+    expect(presented.stack.months.map((month) => month.label)).toEqual([
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+    ]);
+    expect(presented.stack.bands.map((band) => band.label)).toEqual([
+      "Household",
+      "Together",
+      "Carlos",
+      "Maria",
+    ]);
+    expect(presented.stack.bands.map((band) => band.callout)).toEqual([
+      "Household 13.0%",
+      "Together 11.5%",
+      "Carlos 52.8%",
+      "Maria 22.6%",
+    ]);
+    expect(presented.stack.bands.map((band) => band.cents)).toEqual([
+      385_143, 238_739, 1_144_448, 598_499,
+    ]);
+    expect(presented.stack.bands.every((band) => band.path.endsWith("Z"))).toBe(true);
+    expect(presented.stack.months[0]?.x).toBe(12);
+    expect(presented.stack.months.at(-1)?.x).toBe(stackChartWidth - 128);
 
-    for (const point of presented.line.points) {
-      expect(Number.isInteger(point.x)).toBe(true);
-      expect(Number.isInteger(point.y)).toBe(true);
-    }
-
-    const peak = lineChart(presented.line.points.map((point) => ({
-      date: point.date,
-      cents: point.cents,
+    const drawn = stackChart(presented.stack.months.map(() => ({
+      month: "2026-10",
+      household: 0,
+      together: 0,
+      carlosPersonal: 0,
+      mariaPersonal: 0,
     })));
 
-    expect(peak.top).toBe(16);
-    expect(peak.baseline).toBe(lineChartHeight - 16);
+    expect(drawn.empty).toBe(true);
+    expect(drawn.height).toBe(stackChartHeight);
   });
 
   test("a bucket focus narrows the list and leaves the other slices drawn", () => {

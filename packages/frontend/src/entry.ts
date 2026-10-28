@@ -1,4 +1,5 @@
 import { Runtime } from "foldkit";
+import { bindChartTouch } from "./chart-touch.ts";
 import { Message, Model, init, update, view } from "./main";
 import "./styles.css";
 
@@ -18,3 +19,5 @@ const application = Runtime.makeApplication({
 });
 
 Runtime.run(application);
+
+bindChartTouch(document);

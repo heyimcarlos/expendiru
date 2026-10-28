@@ -5,6 +5,7 @@ import {
   bucketSlices,
   defaultSpendFilter,
   merchantBars,
+  parseMonthlyByBucketCsv,
   querySpend,
   spendFeedFromWire,
   totalOutflowCents,
@@ -14,6 +15,7 @@ import { Schema } from "effect";
 const feedDir = process.env.EXPENDIRU_FEED ?? "/workspace/finance/expendiru-feed";
 const transactionsPath = join(feedDir, "transactions.json");
 const summaryPath = join(feedDir, "summary.json");
+const monthlyPath = join(feedDir, "monthly_by_bucket.csv");
 
 if (!existsSync(transactionsPath) || !existsSync(summaryPath)) {
   console.log(`No feed at ${feedDir}. Skipping spend acceptance check.`);
@@ -77,6 +79,17 @@ expectedMerchants.forEach((name, index) => {
     process.exitCode = 1;
   }
 });
+
+if (existsSync(monthlyPath)) {
+  const parsed = parseMonthlyByBucketCsv(readFileSync(monthlyPath, "utf8"));
+
+  if (!parsed.ok) {
+    console.error(parsed.error);
+    process.exit(1);
+  }
+
+  console.log(`monthly_by_bucket.csv: ${parsed.rows.length} months`);
+}
 
 if (process.exitCode === 1) {
   process.exit(1);

@@ -22,6 +22,7 @@ packages/backend/src/live-snapshot.generated.ts
 # Household Finance transaction payload (scripts/sync-spend-feed.mjs).
 /finance/
 packages/backend/src/spend.generated.ts
+/artifacts/
 
 # Local screenshots of live balances.
 /expendiru-shots/

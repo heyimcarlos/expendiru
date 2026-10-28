@@ -18,6 +18,7 @@ export const Message = defineMessageUnion({
   HoveredSpendMark: { mark: SpendMark },
   ClearedSpendHover: {},
   ToggledSpendSeries: { key: Schema.String },
+  ClickedSpendPage: { page: Schema.Int },
 });
 
 export type Message = typeof Message.Type;

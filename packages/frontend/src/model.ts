@@ -48,6 +48,7 @@ export const Model = Schema.Struct({
   spendFocus: SpendMark,
   spendHover: SpendMark,
   spendHidden: Schema.Array(Schema.String),
+  spendPage: Schema.Int,
 });
 
 export type Model = typeof Model.Type;
@@ -63,4 +64,5 @@ export const initialModel = Model.make({
   spendFocus: SpendMark.Idle(),
   spendHover: SpendMark.Idle(),
   spendHidden: [],
+  spendPage: 0,
 });
