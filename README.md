@@ -11,7 +11,7 @@ Private household dashboard for Carlos and Maria in Toronto. This v1 is a thin C
 | **F**oldkit | Draws the home screen | `packages/frontend` |
 | **E**ffect | Types the snapshot and serves it | `packages/domain`, `packages/api`, `packages/backend` |
 
-`@expendiru/domain` is the household model (Canadian cents, emergency fund, two Visa placeholders, four buckets). `@expendiru/api` is the HTTP contract (`GET /snapshot`). The Worker implements it with `HouseholdSource.liveLayer`. The Foldkit page renders that same fixture immediately, and refreshes from `VITE_API_URL` when Alchemy inlines one.
+`@expendiru/domain` is the household model (Canadian cents, emergency fund, two Visa placeholders, four buckets). `@expendiru/api` is the HTTP contract (`GET /snapshot` and `GET /spend`). The Worker implements it with `HouseholdSource.liveLayer`. The Foldkit page renders that same fixture immediately. Alchemy inlines `VITE_API_URL` as `same-origin`, and the page then requests `/snapshot` and `/spend` on the site itself. `packages/frontend/src/edge.ts` proxies those GET paths, plus `/health`, to the API over a service binding.
 
 Effect code follows [AGENTS.md](AGENTS.md) and `.cursor/skills/effect`.
 
@@ -152,7 +152,7 @@ Cloudflare Access is declared on both the API Worker and the Foldkit site. One a
 - carlos.cruzta@gmail.com
 - mariaeduarda.frdo@gmail.com
 
-The policy is `householdAllowPolicy` in `packages/backend/src/access.ts`. Each Worker gets its own Access application (`access.policies`) so the API and the site are both gated by that same list. `alchemy dev` does not show the login wall. The deployed `workers.dev` URLs do, after Access exists in the account.
+The policy is `householdAllowPolicy` in `packages/backend/src/access.ts`. Each Worker gets its own Access application (`access.policies`) so a direct visit to the API host and a visit to the site are both gated by that same list. The page does not call the API host. After one login on the site, snapshot and spend go to the site origin, and the edge worker forwards them to the API binding inside Cloudflare. `alchemy dev` does not show the login wall. The deployed `workers.dev` URLs do, after Access exists in the account.
 
 Before the first deploy that creates those applications:
 
