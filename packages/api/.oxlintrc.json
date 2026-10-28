@@ -1,0 +1,23 @@
+{
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": [
+              "*",
+              "!effect",
+              "!effect/**",
+              "!@expendiru/domain",
+              "!@expendiru/domain/**",
+              "!./**",
+              "!../**"
+            ],
+            "message": "@expendiru/api is imported by the browser: only effect, @expendiru/domain, and relative imports are allowed."
+          }
+        ]
+      }
+    ]
+  }
+}

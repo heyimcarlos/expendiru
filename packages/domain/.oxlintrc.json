@@ -1,0 +1,24 @@
+{
+  "ignorePatterns": ["src/**/*.test.ts"],
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["*", "!effect", "!effect/**", "!./**", "!../**"],
+            "message": "@expendiru/domain is imported by the browser: only effect and relative imports are allowed."
+          }
+        ]
+      }
+    ],
+    "no-restricted-properties": [
+      "error",
+      {
+        "object": "process",
+        "property": "env",
+        "message": "Domain code has no environment. Configuration belongs at the Worker boundary."
+      }
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+node_modules
+dist
+.alchemy
+.tsc
+*.tsbuildinfo
+.direnv
+.env
+.env.*
+!.env.example
+.DS_Store
+coverage
+*.log
+.cache
+node_modules/.stylex
+
+# Local checkouts of upstream repos. Recreate with scripts/clone-references.sh.
+.reference/

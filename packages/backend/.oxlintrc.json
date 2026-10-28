@@ -1,0 +1,12 @@
+{
+  "rules": {
+    "no-restricted-properties": [
+      "error",
+      {
+        "object": "process",
+        "property": "env",
+        "message": "Read configuration from Effect Config or Alchemy bindings, not process.env."
+      }
+    ]
+  }
+}
