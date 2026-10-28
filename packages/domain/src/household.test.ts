@@ -29,6 +29,14 @@ describe("household fixture", () => {
     expect(JSON.stringify(decoded)).not.toMatch(/\d{4}[-\s]\d{4}/);
   });
 
+  test("accepts a live source on the same snapshot shape", () => {
+    const decoded = Schema.decodeUnknownSync(HouseholdSnapshot)({
+      ...householdFixture,
+      source: "live",
+    });
+    expect(decoded.source).toBe("live");
+  });
+
   test("formats CAD from cents", () => {
     expect(formatCad(745_000)).toBe("$7,450.00");
     expect(formatCad(214_055)).toBe("$2,140.55");

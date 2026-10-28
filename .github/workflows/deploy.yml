@@ -32,6 +32,9 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Stub live finance snapshot
+        run: cp packages/backend/src/live-snapshot.generated.stub.ts packages/backend/src/live-snapshot.generated.ts
       - name: Check Cloudflare credentials
         id: creds
         env:
@@ -72,6 +75,8 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Stub live finance snapshot
+        run: cp packages/backend/src/live-snapshot.generated.stub.ts packages/backend/src/live-snapshot.generated.ts
       - name: Safety check
         run: |
           if [ "${{ env.STAGE }}" = "prod" ]; then

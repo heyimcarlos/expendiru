@@ -48,6 +48,7 @@ describe("home", () => {
         }),
       ),
       expect(text("Couldn't refresh from the household API. Showing the fixture. offline")).toExist(),
+      expect(text("Fixture for Carlos and Maria.")).toExist(),
       expect(role("button", { name: "try the api again" })).toBeEnabled(),
       click(role("button", { name: "try the api again" })),
       Command.resolve(
@@ -55,6 +56,29 @@ describe("home", () => {
         Message.LoadedSnapshot({ snapshot: householdFixture }),
       ),
       expect(text("$7,450.00")).toExist(),
+    );
+  });
+
+  test("a loaded live snapshot replaces the fixture footer", () => {
+    scene(
+      { update, view },
+      given(
+        modifyFields(initialModel, {
+          refresh: () => Refresh.Failed({ error: "offline" }),
+        }),
+      ),
+      expect(text("Fixture for Carlos and Maria.")).toExist(),
+      expect(text("Scotia and Wealthsimple are not connected yet.")).toBeAbsent(),
+      click(role("button", { name: "try the api again" })),
+      Command.resolve(
+        LoadSnapshot(),
+        Message.LoadedSnapshot({
+          snapshot: { ...householdFixture, source: "live" },
+        }),
+      ),
+      expect(text("Household Finance snapshot for Carlos and Maria.")).toExist(),
+      expect(text("Fixture for Carlos and Maria.")).toBeAbsent(),
+      expect(text("Scotia and Wealthsimple are not connected yet.")).toBeAbsent(),
     );
   });
 });

@@ -12,7 +12,7 @@ import { HouseholdSource } from "./source.ts";
 
 const apiLayer = HttpApiBuilder.layer(Api).pipe(
   Layer.provide(HouseholdLive),
-  Layer.provide(HouseholdSource.layer),
+  Layer.provide(HouseholdSource.liveLayer),
   Layer.provide(Http.Platform),
   Layer.provide(
     HttpRouter.cors({
