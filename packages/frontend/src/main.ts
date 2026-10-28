@@ -58,6 +58,8 @@ export const update = (model: Model, message: Message) =>
     ChangedSpendFilter: ({ filter }) => ({
       model: modifyFields(model, {
         spendFilter: () => filter,
+        spendFocus: () => SpendMark.Idle(),
+        spendHover: () => SpendMark.Idle(),
       }),
     }),
     ClickedResetSpend: () => ({

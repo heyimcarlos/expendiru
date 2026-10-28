@@ -81,10 +81,10 @@ To add another tree, append a `clone_one` line in `scripts/clone-references.sh`.
 
 ## Home screen
 
-1. Emergency fund progress.
-2. Room left on both Visa cards (placeholder labels, no account numbers).
-3. Household, Together, Carlos, and Maria against a straight-line pace for 28 Oct 2026.
-4. Spending: one pie / bar / line control, then the transactions in that same filter. A slice, bar, or day narrows the list. The legend hides a series.
+1. Spending: a large pie, bar, or line, then the transactions in that picture as a table. A slice, bar, or day filters the rows. The legend hides a series. The only other control is who (Carlos, Maria, or anyone).
+2. Emergency fund progress.
+3. Room left on both Visa cards (placeholder labels, no account numbers).
+4. Household, Together, Carlos, and Maria against a straight-line pace for 28 Oct 2026.
 
 The chart control is a duplicated tab layer clipped to the active third, so the accent fill and the label color move together. Money uses tabular figures. Meters are hairline tracks: green when spending is under pace, red when it is over, and the accent when it is on pace.
 
@@ -92,9 +92,9 @@ The chart control is a duplicated tab layer clipped to the active third, so the 
 
 `GET /spend` returns a `SpendFeed`. The page shows a small stub until that call succeeds, which is what CI runs. Live transactions are not committed.
 
-The default filter is the feed period (`period.from` through `period.to`), `counts_toward_budget=yes`, and rent / `transfer_or_payment` / income hidden. On the Jul–Oct drop that is the whole window, so the pie matches Household Finance: Carlos about $11.4k, Maria about $6.0k, household about $3.9k, together about $2.4k, move one-offs about $1.6k. Charts sum money out (negative amounts). The list is the same filtered set. Search matches merchant, account, person, bucket, and Plaid category text. Category filters use `category_primary`, `category_detailed`, and `category_confidence`.
+The chart fills most of the first screen. Mode tabs and a person menu sit above it. The table under the chart has date, merchant, category and bucket, and amount. The default query is the feed period (`period.from` through `period.to`), `counts_toward_budget=yes`, and rent / `transfer_or_payment` / income hidden. On the Jul–Oct drop that is the whole window, so the pie matches Household Finance: Carlos about $11.4k, Maria about $6.0k, household about $3.9k, together about $2.4k, move one-offs about $1.6k. Charts sum money out (negative amounts). The table is the same filtered set. `querySpend` still matches search text and the category fields; the page does not show those inputs.
 
-Choosing a pie slice, merchant bar, or day filters that same list. Choosing it again, or Clear selection, restores the list. The legend toggles a series out of both the chart and the list. Chart geometry stays put; the mode control is the one clip-path move, and press states scale to 0.97. `prefers-reduced-motion` drops those transforms.
+Choosing a pie slice, merchant bar, or day filters the table. Choosing it again, or Clear selection, restores the rows. The legend toggles a series out of both the chart and the table. Chart geometry stays put; the mode control is the one clip-path move, and press states scale to 0.97. `prefers-reduced-motion` drops those transforms.
 
 Check a local drop against those totals (no-op when the directory is missing):
 

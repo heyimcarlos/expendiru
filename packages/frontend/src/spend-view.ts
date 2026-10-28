@@ -4,7 +4,7 @@ import {
   SpendFilter as SpendFilterSchema,
   formatCad,
 } from "@expendiru/domain";
-import { Button, Checkbox, Input, Select } from "@foldkit/ui";
+import { Button, Select } from "@foldkit/ui";
 import { Option } from "effect";
 import type { Html, HtmlBuilder } from "foldkit/html";
 import * as stylex from "@stylexjs/stylex";
@@ -26,22 +26,6 @@ const chartModes: ReadonlyArray<{ readonly mode: ChartMode; readonly label: stri
   { mode: "bar", label: "Bar" },
   { mode: "line", label: "Line" },
 ];
-
-const pendingChoice = (value: string): SpendFilter["pending"] => {
-  if (value === "true" || value === "false" || value === "unknown") {
-    return value;
-  }
-
-  return "any";
-};
-
-const countsChoice = (value: string): SpendFilter["countsTowardBudget"] => {
-  if (value === "yes" || value === "no") {
-    return value;
-  }
-
-  return "any";
-};
 
 const withFilter = (filter: SpendFilter, patch: Partial<SpendFilter>): SpendFilter =>
   SpendFilterSchema.make({ ...filter, ...patch });
@@ -69,60 +53,30 @@ const optionNodes = (
   return nodes;
 };
 
-const labeledSelect = (
-  id: string,
-  label: string,
-  selected: string,
-  anyValue: string,
-  anyLabel: string,
-  choices: ReturnType<typeof presentSpend>["people"],
-  onChange: (value: string) => Message,
+const personSelect = (
+  filter: SpendFilter,
+  people: ReturnType<typeof presentSpend>["people"],
   h: HtmlBuilder<Message>,
 ): Html =>
   Select.view(
     {
-      id,
-      value: selected,
-      onChange,
+      id: "spend-person",
+      value: filter.person,
+      onChange: (person) =>
+        Message.ChangedSpendFilter({ filter: withFilter(filter, { person }) }),
       toView: (attributes) =>
-        h.div([...styleAttributes(h, stylex.props(styles.field))], [
+        h.div([...styleAttributes(h, stylex.props(styles.personField))], [
           h.label(
             [...attributes.label, ...styleAttributes(h, stylex.props(styles.fieldLabel))],
-            [label],
+            ["Person"],
           ),
           h.select(
-            [...attributes.select, ...styleAttributes(h, stylex.props(styles.control))],
-            optionNodes(selected, anyValue, anyLabel, choices, h),
+            [
+              ...attributes.select,
+              ...styleAttributes(h, stylex.props(styles.control, styles.personControl)),
+            ],
+            optionNodes(filter.person, "", "Any", people, h),
           ),
-        ]),
-    },
-    h,
-  );
-
-const labeledInput = (
-  id: string,
-  label: string,
-  value: string,
-  type: string,
-  onInput: (value: string) => Message,
-  h: HtmlBuilder<Message>,
-): Html =>
-  Input.view(
-    {
-      id,
-      type,
-      value,
-      onInput,
-      toView: (attributes) =>
-        h.div([...styleAttributes(h, stylex.props(styles.field))], [
-          h.label(
-            [...attributes.label, ...styleAttributes(h, stylex.props(styles.fieldLabel))],
-            [label],
-          ),
-          h.input([
-            ...attributes.input,
-            ...styleAttributes(h, stylex.props(styles.control)),
-          ]),
         ]),
     },
     h,
@@ -281,8 +235,9 @@ const pieChart = (
   hidden: ReadonlyArray<string>,
   h: HtmlBuilder<Message>,
 ): Html =>
-  h.div([...styleAttributes(h, stylex.props(styles.chartRow))], [
-    h.svg(
+  h.div([...styleAttributes(h, stylex.props(styles.chartStage))], [
+    h.div([...styleAttributes(h, stylex.props(styles.chartPlot))], [
+      h.svg(
       [
         h.ViewBox("0 0 240 240"),
         h.Role("group"),
@@ -336,7 +291,8 @@ const pieChart = (
           );
         }),
       ],
-    ),
+      ),
+    ]),
     legend(
       presented.rings.map((ring) => ({
         key: ring.key,
@@ -359,14 +315,15 @@ const barChart = (
   hidden: ReadonlyArray<string>,
   h: HtmlBuilder<Message>,
 ): Html =>
-  h.div(
-    [
-      h.Role("group"),
-      h.AriaLabel("Spending by merchant"),
-      ...styleAttributes(h, stylex.props(styles.chartFrame)),
-    ],
-    [
-      ...presented.bars.map((bar) => {
+  h.div([...styleAttributes(h, stylex.props(styles.chartStage))], [
+    h.div(
+      [
+        h.Role("group"),
+        h.AriaLabel("Spending by merchant"),
+        ...styleAttributes(h, stylex.props(styles.chartBars)),
+      ],
+      [
+        ...presented.bars.map((bar) => {
         const mark = SpendMark.Merchant({ key: bar.key });
         const message = Message.ClickedSpendMark({ mark });
 
@@ -396,22 +353,23 @@ const barChart = (
             h.span([...styleAttributes(h, stylex.props(styles.barAmount))], [bar.amountLabel]),
           ],
         );
-      }),
-      legend(
-        presented.bars.map((bar) => ({
-          key: bar.key,
-          label: bar.label,
-          detail: bar.amountLabel,
-          color: bar.color,
-          mark: SpendMark.Merchant({ key: bar.key }),
-        })),
-        hidden,
-        hover,
-        focus,
-        h,
-      ),
-    ],
-  );
+        }),
+      ],
+    ),
+    legend(
+      presented.bars.map((bar) => ({
+        key: bar.key,
+        label: bar.label,
+        detail: bar.amountLabel,
+        color: bar.color,
+        mark: SpendMark.Merchant({ key: bar.key }),
+      })),
+      hidden,
+      hover,
+      focus,
+      h,
+    ),
+  ]);
 
 const gridLine = (
   key: string,
@@ -438,8 +396,10 @@ const lineChart = (
 ): Html => {
   const line = presented.line;
 
-  return h.div([...styleAttributes(h, stylex.props(styles.chartFrame))], [
-    h.svg(
+  return h.div(
+    [...styleAttributes(h, stylex.props(styles.chartStage, styles.chartStageSolo))],
+    [
+      h.svg(
       [
         h.ViewBox(`0 0 ${lineChartWidth} ${lineChartHeight}`),
         h.Role("group"),
@@ -461,17 +421,22 @@ const lineChart = (
           h.VectorEffect("non-scaling-stroke"),
           h.Attribute("pointer-events", "none"),
         ]),
-        ...line.points.map((point) => {
+        ...line.points.flatMap((point) => {
+          if (point.cents <= 0) {
+            return [];
+          }
+
           const mark = SpendMark.Day({ key: point.date });
           const message = Message.ClickedSpendMark({ mark });
           const hot = sameSpendMark(focus, mark) || sameSpendMark(hover, mark);
 
-          return h.keyed("circle")(
+          return [
+            h.keyed("circle")(
             point.date,
             [
               h.Cx(String(point.x)),
               h.Cy(String(point.y)),
-              h.R(hot ? "5" : "3.5"),
+              h.R(hot ? "7" : "5"),
               h.Fill(hot ? palette.accent : palette.ink),
               h.Role("button"),
               h.Tabindex(0),
@@ -489,7 +454,8 @@ const lineChart = (
               ),
             ],
             [h.title([], [`${point.date} · ${formatCad(point.cents)}`])],
-          );
+            ),
+          ];
         }),
       ],
     ),
@@ -500,56 +466,111 @@ const lineChart = (
   ]);
 };
 
-const transactionList = (
+const rowStyle = (hover: SpendMark, focus: SpendMark, mark: SpendMark) => {
+  if (dimmed(hover, focus, mark)) {
+    return stylex.props(styles.txRow, styles.markDim);
+  }
+
+  if (sameSpendMark(focus, mark)) {
+    return stylex.props(styles.txRow, styles.txRowOn);
+  }
+
+  return stylex.props(styles.txRow);
+};
+
+const transactionTable = (
   chart: ChartMode,
   rows: ReadonlyArray<SpendRow>,
   hover: SpendMark,
   focus: SpendMark,
   h: HtmlBuilder<Message>,
 ): Html =>
-  h.ul([...styleAttributes(h, stylex.props(styles.txList))], [
-    ...rows.map((row) => {
-      const mark = rowMark(chart, row);
-      const message = Message.ClickedSpendMark({ mark });
+  h.table(
+    [
+      h.AriaLabel("Transactions"),
+      ...styleAttributes(h, stylex.props(styles.txTable)),
+    ],
+    [
+      h.thead([], [
+        h.tr([], [
+          h.th(
+            [h.Scope("col"), ...styleAttributes(h, stylex.props(styles.txHead, styles.txDate))],
+            ["Date"],
+          ),
+          h.th(
+            [h.Scope("col"), ...styleAttributes(h, stylex.props(styles.txHead))],
+            ["Merchant"],
+          ),
+          h.th(
+            [h.Scope("col"), ...styleAttributes(h, stylex.props(styles.txHead))],
+            ["Category"],
+          ),
+          h.th(
+            [
+              h.Scope("col"),
+              ...styleAttributes(h, stylex.props(styles.txHead, styles.txNumeric)),
+            ],
+            ["Amount"],
+          ),
+        ]),
+      ]),
+      h.tbody(
+        [],
+        rows.map((row) => {
+          const mark = rowMark(chart, row);
+          const message = Message.ClickedSpendMark({ mark });
 
-      return h.keyed("li")(row.id, [], [
-        h.button(
-          [
-            h.Type("button"),
-            h.AriaPressed(sameSpendMark(focus, mark) ? "true" : "false"),
-            h.OnClick(message),
-            h.OnMouseEnter(Message.HoveredSpendMark({ mark })),
-            h.OnMouseLeave(Message.ClearedSpendHover()),
-            ...styleAttributes(
-              h,
-              dimmed(hover, focus, mark)
-                ? stylex.props(styles.txRow, styles.markDim)
-                : stylex.props(styles.txRow),
-            ),
-          ],
-          [
-            h.div([], [
-              h.p([...styleAttributes(h, stylex.props(styles.txTitle))], [
-                `${row.date} · ${row.title}`,
-                row.pending ? " · pending" : "",
+          return h.keyed("tr")(
+            row.id,
+            [
+              h.Tabindex(0),
+              h.AriaPressed(sameSpendMark(focus, mark) ? "true" : "false"),
+              h.OnClick(message),
+              h.OnMouseEnter(Message.HoveredSpendMark({ mark })),
+              h.OnMouseLeave(Message.ClearedSpendHover()),
+              activate(message, h),
+              ...styleAttributes(h, rowStyle(hover, focus, mark)),
+            ],
+            [
+              h.td(
+                [...styleAttributes(h, stylex.props(styles.txCell, styles.txDate))],
+                [
+                  h.time([h.Datetime(row.date)], [row.date]),
+                  row.pending
+                    ? h.span(
+                        [...styleAttributes(h, stylex.props(styles.txMeta))],
+                        ["Pending"],
+                      )
+                    : h.empty,
+                ],
+              ),
+              h.td([...styleAttributes(h, stylex.props(styles.txCell))], [
+                h.span([...styleAttributes(h, stylex.props(styles.txMerchant))], [row.title]),
+                h.span([...styleAttributes(h, stylex.props(styles.txMeta))], [row.detail]),
               ]),
-              h.p([...styleAttributes(h, stylex.props(styles.caption))], [row.detail]),
-              h.p([...styleAttributes(h, stylex.props(styles.caption))], [row.category]),
-            ]),
-            h.p(
-              [
-                ...styleAttributes(
-                  h,
-                  stylex.props(row.incoming ? styles.amountIn : styles.amountOut),
-                ),
-              ],
-              [row.amountLabel],
-            ),
-          ],
-        ),
-      ]);
-    }),
-  ]);
+              h.td([...styleAttributes(h, stylex.props(styles.txCell))], [
+                h.span([...styleAttributes(h, stylex.props(styles.txMerchant))], [row.bucket]),
+                h.span([...styleAttributes(h, stylex.props(styles.txMeta))], [row.category]),
+              ]),
+              h.td(
+                [
+                  ...styleAttributes(
+                    h,
+                    stylex.props(
+                      styles.txCell,
+                      styles.txNumeric,
+                      row.incoming ? styles.amountIn : styles.amountOut,
+                    ),
+                  ),
+                ],
+                [row.amountLabel],
+              ),
+            ],
+          );
+        }),
+      ),
+    ],
+  );
 
 const chartBody = (
   mode: ChartMode,
@@ -560,12 +581,17 @@ const chartBody = (
   h: HtmlBuilder<Message>,
 ): Html => {
   if (presented.chartEmpty) {
-    return h.p(
-      [...styleAttributes(h, stylex.props(styles.lede))],
+    return h.div(
+      [...styleAttributes(h, stylex.props(styles.chartStage, styles.chartStageSolo))],
       [
-        presented.amountError
-          ? "Amount filters need a number, like -42.10 or 100."
-          : "No money out in this filter.",
+        h.p(
+          [...styleAttributes(h, stylex.props(styles.chartEmpty))],
+          [
+            presented.amountError
+              ? "Amount filters need a number, like -42.10 or 100."
+              : "No money out in this filter.",
+          ],
+        ),
       ],
     );
   }
@@ -628,191 +654,20 @@ export const spendView = (model: Model, h: HtmlBuilder<Message>): Html => {
   const focused = !sameSpendMark(model.spendFocus, SpendMark.Idle());
 
   return h.section([...styleAttributes(h, stylex.props(styles.shell))], [
-    h.h2([...styleAttributes(h, stylex.props(styles.heading))], ["Spending"]),
-    h.p(
-      [...styleAttributes(h, stylex.props(styles.lede))],
-      ["Pie, bar, and line share one filter. Choose a mark to narrow the list."],
-    ),
+    h.div([...styleAttributes(h, stylex.props(styles.spendHead))], [
+      h.h2([...styleAttributes(h, stylex.props(styles.heading))], ["Spending"]),
+      h.div([...styleAttributes(h, stylex.props(styles.spendMeta))], [
+        h.p([...styleAttributes(h, stylex.props(styles.spendStat))], [presented.chartTitle]),
+        h.p(
+          [...styleAttributes(h, stylex.props(styles.spendStatMuted))],
+          [presented.countLabel],
+        ),
+      ]),
+    ]),
     spendNotice(model.spendRefresh, h),
-    h.div([...styleAttributes(h, stylex.props(styles.nav))], [
+    h.div([...styleAttributes(h, stylex.props(styles.toolbar))], [
       chartSwitch(model.spendChart, h),
-    ]),
-    h.div([...styleAttributes(h, stylex.props(styles.filters))], [
-      labeledInput(
-        "spend-search",
-        "Search",
-        filter.search,
-        "search",
-        (search) => Message.ChangedSpendFilter({ filter: withFilter(filter, { search }) }),
-        h,
-      ),
-      labeledSelect(
-        "spend-person",
-        "Person",
-        filter.person,
-        "",
-        "Any",
-        presented.people,
-        (person) => Message.ChangedSpendFilter({ filter: withFilter(filter, { person }) }),
-        h,
-      ),
-      labeledSelect(
-        "spend-account",
-        "Account",
-        filter.account,
-        "",
-        "Any",
-        presented.accounts,
-        (account) => Message.ChangedSpendFilter({ filter: withFilter(filter, { account }) }),
-        h,
-      ),
-      labeledSelect(
-        "spend-bucket",
-        "Budget bucket",
-        filter.budgetBucket,
-        "",
-        "Any",
-        presented.buckets,
-        (budgetBucket) =>
-          Message.ChangedSpendFilter({ filter: withFilter(filter, { budgetBucket }) }),
-        h,
-      ),
-      labeledSelect(
-        "spend-category",
-        "Category",
-        filter.categoryPrimary,
-        "",
-        "Any",
-        presented.categories,
-        (categoryPrimary) =>
-          Message.ChangedSpendFilter({ filter: withFilter(filter, { categoryPrimary }) }),
-        h,
-      ),
-      labeledSelect(
-        "spend-detailed",
-        "Detailed category",
-        filter.categoryDetailed,
-        "",
-        "Any",
-        presented.detailed,
-        (categoryDetailed) =>
-          Message.ChangedSpendFilter({ filter: withFilter(filter, { categoryDetailed }) }),
-        h,
-      ),
-      labeledSelect(
-        "spend-confidence",
-        "Category confidence",
-        filter.categoryConfidence,
-        "",
-        "Any",
-        presented.confidence,
-        (categoryConfidence) =>
-          Message.ChangedSpendFilter({
-            filter: withFilter(filter, { categoryConfidence }),
-          }),
-        h,
-      ),
-      labeledSelect(
-        "spend-pending",
-        "Pending",
-        filter.pending,
-        "any",
-        "Any",
-        [
-          { value: "true", label: "Pending" },
-          { value: "false", label: "Posted" },
-          { value: "unknown", label: "Unknown" },
-        ],
-        (value) =>
-          Message.ChangedSpendFilter({
-            filter: withFilter(filter, { pending: pendingChoice(value) }),
-          }),
-        h,
-      ),
-      labeledSelect(
-        "spend-counts",
-        "Budget",
-        filter.countsTowardBudget,
-        "any",
-        "All activity",
-        [
-          { value: "yes", label: "In the budget" },
-          { value: "no", label: "Outside the budget" },
-        ],
-        (value) =>
-          Message.ChangedSpendFilter({
-            filter: withFilter(filter, { countsTowardBudget: countsChoice(value) }),
-          }),
-        h,
-      ),
-      labeledInput(
-        "spend-from",
-        "From",
-        filter.dateFrom,
-        "date",
-        (dateFrom) => Message.ChangedSpendFilter({ filter: withFilter(filter, { dateFrom }) }),
-        h,
-      ),
-      labeledInput(
-        "spend-to",
-        "To",
-        filter.dateTo,
-        "date",
-        (dateTo) => Message.ChangedSpendFilter({ filter: withFilter(filter, { dateTo }) }),
-        h,
-      ),
-      labeledInput(
-        "spend-min",
-        "Amount min",
-        filter.amountMin,
-        "text",
-        (amountMin) => Message.ChangedSpendFilter({ filter: withFilter(filter, { amountMin }) }),
-        h,
-      ),
-      labeledInput(
-        "spend-max",
-        "Amount max",
-        filter.amountMax,
-        "text",
-        (amountMax) => Message.ChangedSpendFilter({ filter: withFilter(filter, { amountMax }) }),
-        h,
-      ),
-    ]),
-    h.div([...styleAttributes(h, stylex.props(styles.nav))], [
-      Checkbox.view(
-        {
-          id: "spend-exclude",
-          isChecked: filter.excludeNonSpend,
-          onToggle: (excludeNonSpend) =>
-            Message.ChangedSpendFilter({
-              filter: withFilter(filter, { excludeNonSpend }),
-            }),
-          toView: (attributes) =>
-            h.div([...styleAttributes(h, stylex.props(styles.checkRow))], [
-              h.button(
-                [...attributes.checkbox, ...styleAttributes(h, stylex.props(styles.check))],
-                [filter.excludeNonSpend ? "✓" : ""],
-              ),
-              h.label(
-                [...attributes.label, ...styleAttributes(h, stylex.props(styles.fieldLabel))],
-                ["Hide rent, transfers, and income"],
-              ),
-            ]),
-        },
-        h,
-      ),
-      Button.view(
-        {
-          type: "button",
-          onClick: Message.ClickedResetSpend(),
-          toView: (attributes) =>
-            h.button(
-              [...attributes.button, ...styleAttributes(h, stylex.props(styles.button))],
-              ["Reset filters"],
-            ),
-        },
-        h,
-      ),
+      personSelect(filter, presented.people, h),
       focused
         ? Button.view(
             {
@@ -828,16 +683,23 @@ export const spendView = (model: Model, h: HtmlBuilder<Message>): Html => {
           )
         : h.empty,
     ]),
-    h.p([...styleAttributes(h, stylex.props(styles.detail))], [presented.chartTitle]),
-    h.p([...styleAttributes(h, stylex.props(styles.lede))], [presented.countLabel]),
     chart,
     h.p(
       [...styleAttributes(h, stylex.props(styles.tooltip))],
       [tooltipText(presented, model.spendHover)],
     ),
-    h.h3([...styleAttributes(h, stylex.props(styles.heading))], ["Transactions"]),
+    h.h3(
+      [...styleAttributes(h, stylex.props(styles.heading, styles.txHeading))],
+      ["Transactions"],
+    ),
     presented.rows.length === 0
       ? h.p([...styleAttributes(h, stylex.props(styles.lede))], ["Nothing in this filter."])
-      : transactionList(model.spendChart, presented.rows, model.spendHover, model.spendFocus, h),
+      : transactionTable(
+          model.spendChart,
+          presented.rows,
+          model.spendHover,
+          model.spendFocus,
+          h,
+        ),
   ]);
 };

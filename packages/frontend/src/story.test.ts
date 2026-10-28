@@ -90,4 +90,22 @@ describe("spend chart", () => {
       }),
     );
   });
+
+  test("a person filter clears the chart selection", () => {
+    story(
+      update,
+      given(initialModel),
+      message(Message.ClickedSpendMark({ mark: SpendMark.Bucket({ key: "household" }) })),
+      message(
+        Message.ChangedSpendFilter({
+          filter: { ...initialModel.spendFilter, person: "Carlos" },
+        }),
+      ),
+      model((next) => {
+        expect(next.spendFilter.person).toBe("Carlos");
+        expect(next.spendFocus).toEqual(SpendMark.Idle());
+        expect(next.spendHover).toEqual(SpendMark.Idle());
+      }),
+    );
+  });
 });

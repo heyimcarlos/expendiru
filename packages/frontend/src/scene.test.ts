@@ -1,5 +1,5 @@
 import { householdFixture } from "@expendiru/domain";
-import { Command, click, expect, given, role, scene, selector, text } from "foldkit/scene";
+import { Command, change, click, expect, given, role, scene, selector, text } from "foldkit/scene";
 import { modifyFields } from "foldkit/struct";
 import { describe, test } from "vitest";
 import { LoadSnapshot } from "./command.ts";
@@ -91,12 +91,22 @@ describe("spending", () => {
       expect(text("Spending")).toExist(),
       expect(role("button", { name: "Pie" })).toHaveAttr("aria-pressed", "true"),
       expect(text("By bucket")).toExist(),
-      expect(text("Search")).toExist(),
+      expect(text("Search")).toBeAbsent(),
+      expect(text("Amount min")).toBeAbsent(),
+      expect(text("Reset filters")).toBeAbsent(),
+      expect(role("checkbox", { name: "Hide rent, transfers, and income" })).toBeAbsent(),
+      expect(role("combobox", { name: "Person" })).toExist(),
+      expect(role("table", { name: "Transactions" })).toExist(),
+      expect(role("columnheader", { name: "Date" })).toExist(),
+      expect(role("columnheader", { name: "Merchant" })).toExist(),
+      expect(role("columnheader", { name: "Category" })).toExist(),
+      expect(role("columnheader", { name: "Amount" })).toExist(),
       expect(text("6 transactions · $227.90 out")).toExist(),
       expect(text("Stub Grocery", { exact: false })).toExist(),
       expect(text("Stub July", { exact: false })).toExist(),
+      expect(text("2026-10-27")).toExist(),
+      expect(text("Pending")).toExist(),
       expect(text("Stub Rent", { exact: false })).toBeAbsent(),
-      expect(role("checkbox", { name: "Hide rent, transfers, and income" })).toBeChecked(),
       click(role("button", { name: "Bar" })),
       expect(text("By merchant")).toExist(),
       expect(text("By bucket")).toBeAbsent(),
@@ -150,8 +160,22 @@ describe("spending", () => {
       expect(selector('[data-clip="bar"]')).toExist(),
       click(role("button", { name: "Show Stub Lamp" })),
       expect(text("1 transaction · $80.00 out")).toExist(),
-      expect(text("Carlos · Carlos Scene+ Visa · Move", { exact: false })).toExist(),
-      expect(text("Maria · Maria chequing · Household", { exact: false })).toBeAbsent(),
+      expect(text("Carlos · Carlos Scene+ Visa", { exact: false })).toExist(),
+      expect(text("Move", { exact: false })).toExist(),
+      expect(text("Maria · Maria chequing", { exact: false })).toBeAbsent(),
+    );
+  });
+
+  test("the person menu narrows the table", () => {
+    scene(
+      { update, view },
+      given(initialModel),
+      change(role("combobox", { name: "Person" }), "Carlos"),
+      expect(text("3 transactions · $147.30 out")).toExist(),
+      expect(text("Stub Transit", { exact: false })).toExist(),
+      expect(text("Stub Dinner", { exact: false })).toExist(),
+      expect(text("Stub Grocery", { exact: false })).toBeAbsent(),
+      expect(text("Stub Rent", { exact: false })).toBeAbsent(),
     );
   });
 });

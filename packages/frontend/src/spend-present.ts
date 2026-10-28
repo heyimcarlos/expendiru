@@ -69,6 +69,7 @@ export type SpendRow = {
   readonly title: string;
   readonly detail: string;
   readonly category: string;
+  readonly bucket: string;
   readonly amountLabel: string;
   readonly pending: boolean;
   readonly incoming: boolean;
@@ -98,9 +99,9 @@ export const pieRadius = 78;
 
 export const pieCircumference = 2 * Math.PI * pieRadius;
 
-export const lineChartWidth = 640;
+export const lineChartWidth = 960;
 
-export const lineChartHeight = 220;
+export const lineChartHeight = 600;
 
 const linePad = 16;
 
@@ -339,8 +340,9 @@ const presentRow = (tx: LedgerTransaction): SpendRow => ({
   id: tx.id,
   date: tx.date,
   title: merchantLabel(tx),
-  detail: `${tx.person} · ${tx.account} · ${budgetBucketLabel(tx.budgetBucket)}`,
+  detail: `${tx.person} · ${tx.account}`,
   category: categoryLine(tx),
+  bucket: budgetBucketLabel(tx.budgetBucket),
   amountLabel: formatCad(tx.amountCents),
   pending: tx.pending === "true",
   incoming: tx.amountCents > 0,
