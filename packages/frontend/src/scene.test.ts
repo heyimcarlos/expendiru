@@ -82,3 +82,33 @@ describe("home", () => {
     );
   });
 });
+
+describe("spending", () => {
+  test("toggles pie, bar, and line and lists the filtered transactions", () => {
+    scene(
+      { update, view },
+      given(initialModel),
+      expect(text("Spending")).toExist(),
+      expect(role("button", { name: "Pie" })).toHaveAttr("aria-pressed", "true"),
+      expect(text("By bucket")).toExist(),
+      expect(text("Search")).toExist(),
+      expect(text("6 transactions · $227.90 out")).toExist(),
+      expect(text("Stub Grocery", { exact: false })).toExist(),
+      expect(text("Stub July", { exact: false })).toExist(),
+      expect(text("Stub Rent", { exact: false })).toBeAbsent(),
+      expect(role("checkbox", { name: "Hide rent, transfers, and income" })).toBeChecked(),
+      click(role("button", { name: "Bar" })),
+      expect(text("By merchant")).toExist(),
+      expect(text("By bucket")).toBeAbsent(),
+      expect(role("img", { name: "Spending by merchant" })).toExist(),
+      expect(text("Stub Grocery", { exact: false })).toExist(),
+      click(role("button", { name: "Line" })),
+      expect(text("By day")).toExist(),
+      expect(role("img", { name: "Spending by day" })).toExist(),
+      expect(text("Stub Transit", { exact: false })).toExist(),
+      click(role("button", { name: "Pie" })),
+      expect(text("By bucket")).toExist(),
+      expect(role("img", { name: "Spending by bucket" })).toExist(),
+    );
+  });
+});

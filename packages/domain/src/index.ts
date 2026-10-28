@@ -19,3 +19,33 @@ export {
 } from "./household.ts";
 
 export type { PaceStanding } from "./household.ts";
+
+export {
+  AmountBounds,
+  ChartMode,
+  DailySpend,
+  LedgerTransaction,
+  SpendFeed,
+  SpendFeedWire,
+  SpendFilter,
+  SpendPeriod,
+  SpendSlice,
+  bucketSlices,
+  budgetBucketLabel,
+  dailySeries,
+  defaultSpendFilter,
+  dollarsToCents,
+  encodedSpendStub,
+  isNonSpendBucket,
+  merchantBars,
+  merchantLabel,
+  outflowCents,
+  querySpend,
+  readAmountBounds,
+  sameSpendFilter,
+  spendFeedFromWire,
+  spendStub,
+  totalOutflowCents,
+} from "./spend.ts";
+
+export type { SpendQuery } from "./spend.ts";

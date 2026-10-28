@@ -1,7 +1,7 @@
 import { householdFixture } from "@expendiru/domain";
 import { Command, given, message, model, story } from "foldkit/story";
 import { describe, expect, test } from "vitest";
-import { LoadSnapshot } from "./command.ts";
+import { LoadSnapshot, LoadSpend } from "./command.ts";
 import { init, update } from "./main.ts";
 import { Message } from "./message.ts";
 import { Refresh, initialModel } from "./model.ts";
@@ -52,6 +52,20 @@ describe("init", () => {
   test("starts from the fixture and loads a snapshot", () => {
     const started = init();
     expect(started.model.snapshot.householdName).toBe("Carlos & Maria");
-    expect(started.commands).toEqual([LoadSnapshot()]);
+    expect(started.commands).toEqual([LoadSnapshot(), LoadSpend()]);
+  });
+});
+
+describe("spend chart", () => {
+  test("the toggle stores the chart mode", () => {
+    story(
+      update,
+      given(initialModel),
+      message(Message.ClickedChart({ mode: "bar" })),
+      model((next) => {
+        expect(next.spendChart).toBe("bar");
+        expect(next.spend).toEqual(initialModel.spend);
+      }),
+    );
   });
 });

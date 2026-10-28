@@ -7,8 +7,11 @@
     "dev": "alchemy dev",
     "deploy": "alchemy deploy",
     "destroy": "alchemy destroy",
-    "typecheck": "tsc --build",
-    "test": "pnpm --recursive test",
+    "prepare": "node scripts/ensure-spend-payload.mjs",
+    "sync:spend": "node scripts/sync-spend-feed.mjs",
+    "check:spend": "node --experimental-strip-types scripts/check-spend-feed.ts",
+    "typecheck": "node scripts/ensure-spend-payload.mjs && tsc --build",
+    "test": "node scripts/ensure-spend-payload.mjs && node --experimental-strip-types scripts/check-spend-feed.ts && pnpm --recursive test",
     "lint": "oxlint alchemy.run.ts stacks && pnpm --recursive lint"
   },
   "dependencies": {

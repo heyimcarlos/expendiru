@@ -1,5 +1,5 @@
 import { Api } from "@expendiru/api";
-import { householdFixture } from "@expendiru/domain";
+import { householdFixture, spendStub } from "@expendiru/domain";
 import { Config, ConfigProvider, Effect, Option } from "effect";
 import { HttpApiClient } from "effect/http-api";
 import { Command, Http } from "foldkit";
@@ -40,7 +40,35 @@ const loadSnapshot = Effect.fn("Household.loadSnapshot")(
     ),
 );
 
+const loadSpend = Effect.fn("Household.loadSpend")(
+  function* () {
+    const apiUrl = yield* Config.option(Config.String("VITE_API_URL"));
+
+    if (Option.isNone(apiUrl)) {
+      return Message.LoadedSpend({ feed: spendStub });
+    }
+
+    const client = yield* HttpApiClient.make(Api, { baseUrl: apiUrl.value });
+    const feed = yield* client.Household.getSpend();
+
+    return Message.LoadedSpend({ feed });
+  },
+  (effect) =>
+    effect.pipe(
+      Effect.catch((error) =>
+        Effect.succeed(Message.FailedLoadSpend({ error: globalThis.String(error) })),
+      ),
+      Effect.provide(Http.layer),
+      Effect.provide(apiUrlConfig),
+    ),
+);
+
 export const LoadSnapshot = Command.define("LoadSnapshot", {
   messages: [Message.LoadedSnapshot, Message.FailedLoadSnapshot],
   execute: loadSnapshot(),
+});
+
+export const LoadSpend = Command.define("LoadSpend", {
+  messages: [Message.LoadedSpend, Message.FailedLoadSpend],
+  execute: loadSpend(),
 });

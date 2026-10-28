@@ -84,8 +84,33 @@ To add another tree, append a `clone_one` line in `scripts/clone-references.sh`.
 1. Emergency fund progress.
 2. Room left on both Visa cards (placeholder labels, no account numbers).
 3. Household, Together, Carlos, and Maria against a straight-line pace for 28 Oct 2026.
+4. Spending: one pie / bar / line toggle, then the transactions in that same filter.
 
-Replay restarts the bar animation. Sketch frames are generated paths, in the same spirit as the rough.js cards in the theme reference.
+Replay restarts the bar animation. Sketch frames are generated paths, in the same spirit as the rough.js cards in the theme reference. Meter tracks sit on the paper color with an ink border, and the fill uses the darker ink tones so a small percent stays visible on the pastel cards.
+
+## Spending
+
+`GET /spend` returns a `SpendFeed`. The page shows a small stub until that call succeeds, which is what CI runs. Live transactions are not committed.
+
+The default filter is the feed period (`period.from` through `period.to`), `counts_toward_budget=yes`, and rent / `transfer_or_payment` / income hidden. On the Jul–Oct drop that is the whole window, so the pie matches Household Finance: Carlos about $11.4k, Maria about $6.0k, household about $3.9k, together about $2.4k, move one-offs about $1.6k. Charts sum money out (negative amounts). The list is the same filtered set. Search matches merchant, account, person, bucket, and Plaid category text. Category filters use `category_primary`, `category_detailed`, and `category_confidence`.
+
+Replay restarts the ink-draw on the meters, the pie, the bars, and the line. Chart switches replay that drawing too. `prefers-reduced-motion` leaves the final frame in place.
+
+Check a local drop against those totals (no-op when the directory is missing):
+
+```sh
+pnpm check:spend
+```
+
+Sync a Household Finance drop into the Worker:
+
+```sh
+pnpm sync:spend
+```
+
+The script reads `/workspace/finance/expendiru-feed` when that directory contains `transactions.json` and `summary.json`. Set `EXPENDIRU_FEED` to point somewhere else. It writes `packages/backend/src/spend.generated.ts`, which is gitignored. Restart `pnpm dev` so the Worker bundles the new file. If the directory is missing, the script leaves the current payload alone.
+
+`pnpm install` creates the generated file as a re-export of the stub when it is absent. A deploy from a clean tree serves that stub. A deploy from a tree you already synced bundles the local feed into the Worker.
 
 ## Theme tokens
 
@@ -117,6 +142,8 @@ StyleX variables live in `packages/frontend/src/theme.stylex.ts` (`tokens`). The
 ## Next: live Scotia and Wealthsimple
 
 `HouseholdSource` in `packages/backend/src/source.ts` is the port. `HouseholdSource.layer` decodes the placeholder fixture; production uses `HouseholdSource.liveLayer`, which reads `live-snapshot.generated.ts` mapped from the Household Finance feed at `/workspace/finance/expendiru-feed` via `scripts/sync-expendiru-feed.py`. That generated file is gitignored — CI copies the stub so typecheck still works. Do not commit live balances or account numbers. The emergency fund card is liquid rainy-day cash only: Maria savings against `goals.emergency_liquid_target` ($30k). Carlos savings and the Wealthsimple TFSA are not included. The combined safety net remains `goals.emergency_fund_target` ($60k: $30k liquid + $30k TFSA) and is not that card's target.
+
+`SpendSource` in `packages/backend/src/spend-source.ts` serves `GET /spend` from the gitignored `spend.generated.ts`, or the stub when that file only re-exports it. `pnpm sync:spend` writes it from the same feed directory. Do not commit the transaction dump.
 
 ## Who can open the deployed app
 
