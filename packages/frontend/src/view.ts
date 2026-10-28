@@ -276,6 +276,14 @@ const retryButton = (h: HtmlBuilder<Message>): Html =>
     h,
   );
 
+const footerCopy = (source: Model["snapshot"]["source"]): string => {
+  if (source === "live") {
+    return "Household Finance snapshot for Carlos and Maria.";
+  }
+
+  return "Fixture for Carlos and Maria.";
+};
+
 const noticeView = (refresh: Refresh, h: HtmlBuilder<Message>): Html =>
   Refresh.match(refresh, {
     Idle: () => h.empty,
@@ -347,9 +355,7 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
       ]),
       h.p(
         [...styleAttributes(h, stylex.props(styles.footer))],
-        [
-          "Fixture for Carlos and Maria. Scotia and Wealthsimple are not connected yet.",
-        ],
+        [footerCopy(model.snapshot.source)],
       ),
     ]),
   };

@@ -116,7 +116,7 @@ StyleX variables live in `packages/frontend/src/theme.stylex.ts` (`tokens`). The
 
 ## Next: live Scotia and Wealthsimple
 
-`HouseholdSource` in `packages/backend/src/source.ts` is the port. `HouseholdSource.layer` decodes the placeholder fixture; production uses `HouseholdSource.liveLayer`, which reads `live-snapshot.generated.ts` mapped from the Household Finance feed at `/workspace/finance/expendiru-feed` via `scripts/sync-expendiru-feed.py`. That generated file is gitignored — CI copies the stub so typecheck still works. Do not commit live balances or account numbers.
+`HouseholdSource` in `packages/backend/src/source.ts` is the port. `HouseholdSource.layer` decodes the placeholder fixture; production uses `HouseholdSource.liveLayer`, which reads `live-snapshot.generated.ts` mapped from the Household Finance feed at `/workspace/finance/expendiru-feed` via `scripts/sync-expendiru-feed.py`. That generated file is gitignored — CI copies the stub so typecheck still works. Do not commit live balances or account numbers. The emergency fund card is liquid rainy-day cash only: Maria savings against `goals.emergency_liquid_target` ($30k). Carlos savings and the Wealthsimple TFSA are not included. The combined safety net remains `goals.emergency_fund_target` ($60k: $30k liquid + $30k TFSA) and is not that card's target.
 
 ## Who can open the deployed app
 

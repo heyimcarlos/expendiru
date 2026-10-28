@@ -47,11 +47,11 @@ def main() -> None:
         oct_spend[t.get("budget_bucket") or "uncategorized"] += -amt
 
     bucket_budget = {b["id"]: b["monthly"] for b in budget["buckets"]}
-    saved = (
-        balances["Carlos savings"]
-        + balances["Maria savings"]
-        + balances["Wealthsimple TFSA"]
-    )
+    # Liquid rainy-day cash only. Carlos savings and the Wealthsimple TFSA
+    # stay out of this card; the TFSA is long-term. emergency_liquid_target
+    # is the liquid goal. emergency_fund_target is the combined safety net
+    # (liquid plus TFSA) and is not this card's target.
+    saved = balances["Maria savings"]
 
     snap = {
         "householdName": "Carlos & Maria",
@@ -64,7 +64,7 @@ def main() -> None:
         "emergencyFund": {
             "name": "Emergency fund",
             "saved": cad(saved),
-            "target": cad(budget["goals"]["emergency_fund_target"]),
+            "target": cad(budget["goals"]["emergency_liquid_target"]),
         },
         "cards": [
             {
