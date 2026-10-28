@@ -1,15 +1,34 @@
-import { householdFixture, type HouseholdSnapshot } from "@expendiru/domain";
-import * as Context from "effect/Context";
-import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
+import { encodedHouseholdFixture, HouseholdSnapshot } from "@expendiru/domain";
+import { SnapshotDecodeError } from "@expendiru/api";
+import { Context, Effect, Layer, Schema } from "effect";
 
-export class HouseholdSource extends Context.Service<
-  HouseholdSource,
-  {
-    readonly load: Effect.Effect<HouseholdSnapshot>;
-  }
->()("expendiru/HouseholdSource") {}
+export interface Interface {
+  readonly load: () => Effect.Effect<HouseholdSnapshot, SnapshotDecodeError>;
+}
 
-export const FixtureHouseholdSource = Layer.succeed(HouseholdSource, {
-  load: Effect.succeed(householdFixture),
-});
+export class Service extends Context.Service<Service, Interface>()(
+  "expendiru/HouseholdSource",
+) {}
+
+export const layer = Layer.effect(
+  Service,
+  Effect.gen(function* () {
+    const load = Effect.fn("HouseholdSource.load")(function* () {
+      return yield* Schema.decodeUnknownEffect(HouseholdSnapshot)(
+        encodedHouseholdFixture,
+      ).pipe(
+        Effect.mapError(
+          (cause) =>
+            new SnapshotDecodeError({
+              operation: "HouseholdSource.load",
+              detail: cause.message,
+            }),
+        ),
+      );
+    });
+
+    return yield* Effect.succeed(Service.of({ load }));
+  }),
+);
+
+export * as HouseholdSource from "./source.ts";

@@ -1,18 +1,18 @@
 import { Api } from "@expendiru/api";
-import * as Effect from "effect/Effect";
-import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
+import { Effect } from "effect";
+import { HttpApiBuilder } from "effect/http-api";
 import { HouseholdSource } from "./source.ts";
 
 export const HouseholdLive = HttpApiBuilder.group(
   Api,
   "Household",
-  Effect.fn("HouseholdLive")(function* (handlers) {
-    const source = yield* HouseholdSource;
+  Effect.fn("Household.handlers")(function* (handlers) {
+    const source = yield* HouseholdSource.Service;
 
     return handlers.handle(
       "getSnapshot",
       Effect.fn("Household.getSnapshot")(function* () {
-        return yield* source.load;
+        return yield* source.load();
       }),
     );
   }),

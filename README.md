@@ -11,7 +11,9 @@ Private household dashboard for Carlos and Maria in Toronto. This v1 is a thin C
 | **F**oldkit | Draws the home screen | `packages/frontend` |
 | **E**ffect | Types the snapshot and serves it | `packages/domain`, `packages/api`, `packages/backend` |
 
-`@expendiru/domain` is the household model (Canadian cents, emergency fund, two Visa placeholders, four buckets). `@expendiru/api` is the HTTP contract (`GET /snapshot`). The Worker implements it with `FixtureHouseholdSource`. The Foldkit page renders that same fixture immediately, and refreshes from `VITE_API_URL` when Alchemy inlines one.
+`@expendiru/domain` is the household model (Canadian cents, emergency fund, two Visa placeholders, four buckets). `@expendiru/api` is the HTTP contract (`GET /snapshot`). The Worker implements it with `HouseholdSource.layer`. The Foldkit page renders that same fixture immediately, and refreshes from `VITE_API_URL` when Alchemy inlines one.
+
+Effect code follows [AGENTS.md](AGENTS.md) and `.cursor/skills/effect`.
 
 Patterned on [Effect-TS/cafe](https://github.com/Effect-TS/cafe), not the heavier rat-stack template. A small import fence (oxlint) keeps `domain` and `api` browser-safe.
 
@@ -113,7 +115,7 @@ StyleX variables live in `packages/frontend/src/theme.stylex.ts` (`tokens`). The
 
 ## Next: live Scotia and Wealthsimple
 
-`HouseholdSource` in `packages/backend/src/source.ts` is the port. `FixtureHouseholdSource` is the only layer today. Replace that layer with a client of the Household Finance bot and keep returning `HouseholdSnapshot` from `GET /snapshot`. Extend `SnapshotSource` when the payload is no longer a fixture. Do not put real account numbers in the repo; labels stay placeholders. Auth (so the dashboard is actually private) is a later step, likely Cloudflare Access on the Worker.
+`HouseholdSource` in `packages/backend/src/source.ts` is the port. `HouseholdSource.layer` is the only implementation today: it decodes the fixture. Replace that layer with a client of the Household Finance bot and keep returning `HouseholdSnapshot` from `GET /snapshot`. Extend `SnapshotSource` when the payload is no longer a fixture. Do not put real account numbers in the repo; labels stay placeholders. Auth (so the dashboard is actually private) is a later step, likely Cloudflare Access on the Worker.
 
 ## Docs followed
 

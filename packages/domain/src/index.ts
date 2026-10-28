@@ -10,6 +10,7 @@ export {
   cappedPercent,
   formatCad,
   formatPercent,
+  encodedHouseholdFixture,
   householdFixture,
   paceCents,
   paceStanding,

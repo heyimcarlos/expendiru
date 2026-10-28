@@ -19,6 +19,7 @@
     "foldkit": "catalog:"
   },
   "devDependencies": {
+    "@effect/vitest": "catalog:",
     "@foldkit/devtools": "catalog:",
     "@foldkit/devtools-mcp": "catalog:",
     "@foldkit/oxlint-plugin": "catalog:",

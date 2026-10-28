@@ -1,5 +1,5 @@
+import { Schema } from "effect";
 import { describe, expect, test } from "vitest";
-import * as Schema from "effect/Schema";
 import {
   HouseholdSnapshot,
   formatCad,

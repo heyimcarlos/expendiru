@@ -1,17 +1,12 @@
 import { householdFixture } from "@expendiru/domain";
-import * as Effect from "effect/Effect";
-import { describe, expect, test } from "vitest";
-import { FixtureHouseholdSource, HouseholdSource } from "../src/source.ts";
+import { expect, it } from "@effect/vitest";
+import { Effect } from "effect";
+import { HouseholdSource } from "../src/source.ts";
 
-describe("FixtureHouseholdSource", () => {
-  test("loads the shared household fixture", async () => {
-    const snapshot = await Effect.runPromise(
-      Effect.gen(function* () {
-        const source = yield* HouseholdSource;
-        return yield* source.load;
-      }).pipe(Effect.provide(FixtureHouseholdSource)),
-    );
-
+it.effect("loads the shared household fixture", () =>
+  Effect.gen(function* () {
+    const source = yield* HouseholdSource.Service;
+    const snapshot = yield* source.load();
     expect(snapshot).toEqual(householdFixture);
-  });
-});
+  }).pipe(Effect.provide(HouseholdSource.layer)),
+);

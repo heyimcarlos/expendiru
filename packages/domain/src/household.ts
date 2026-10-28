@@ -1,13 +1,13 @@
-import * as Schema from "effect/Schema";
+import { Schema } from "effect";
 
 export const CanadianDollars = Schema.Struct({
   cents: Schema.Natural,
   currency: Schema.Literals(["CAD"]),
 });
-export type CanadianDollars = typeof CanadianDollars.Type;
+export interface CanadianDollars extends Schema.Schema.Type<typeof CanadianDollars> {}
 
 export const Person = Schema.Literals(["Carlos", "Maria"]);
-export type Person = typeof Person.Type;
+export type Person = Schema.Schema.Type<typeof Person>;
 
 export const BucketId = Schema.Literals([
   "household",
@@ -15,17 +15,17 @@ export const BucketId = Schema.Literals([
   "carlos",
   "maria",
 ]);
-export type BucketId = typeof BucketId.Type;
+export type BucketId = Schema.Schema.Type<typeof BucketId>;
 
 export const SnapshotSource = Schema.Literals(["fixture"]);
-export type SnapshotSource = typeof SnapshotSource.Type;
+export type SnapshotSource = Schema.Schema.Type<typeof SnapshotSource>;
 
 export const EmergencyFund = Schema.Struct({
   name: Schema.String,
   saved: CanadianDollars,
   target: CanadianDollars,
 });
-export type EmergencyFund = typeof EmergencyFund.Type;
+export interface EmergencyFund extends Schema.Schema.Type<typeof EmergencyFund> {}
 
 export const VisaCard = Schema.Struct({
   id: Schema.String,
@@ -34,7 +34,7 @@ export const VisaCard = Schema.Struct({
   limit: CanadianDollars,
   balance: CanadianDollars,
 });
-export type VisaCard = typeof VisaCard.Type;
+export interface VisaCard extends Schema.Schema.Type<typeof VisaCard> {}
 
 export const BudgetBucket = Schema.Struct({
   id: BucketId,
@@ -42,7 +42,7 @@ export const BudgetBucket = Schema.Struct({
   budget: CanadianDollars,
   spent: CanadianDollars,
 });
-export type BudgetBucket = typeof BudgetBucket.Type;
+export interface BudgetBucket extends Schema.Schema.Type<typeof BudgetBucket> {}
 
 export const HouseholdSnapshot = Schema.Struct({
   householdName: Schema.String,
@@ -60,12 +60,12 @@ export const HouseholdSnapshot = Schema.Struct({
     BudgetBucket,
     BudgetBucket,
   ]),
-});
-export type HouseholdSnapshot = typeof HouseholdSnapshot.Type;
+}).annotate({ identifier: "HouseholdSnapshot" });
+export interface HouseholdSnapshot extends Schema.Schema.Type<typeof HouseholdSnapshot> {}
 
 export type PaceStanding = "under" | "on" | "over";
 
-const cad = (cents: number) => ({ cents, currency: "CAD" as const });
+const cad = (cents: number) => ({ cents, currency: "CAD" });
 
 export const formatCad = (cents: number): string => {
   const negative = cents < 0;
@@ -116,7 +116,7 @@ export const formatPercent = (value: number): string => {
   return Number.isInteger(rounded) ? `${rounded}%` : `${rounded.toFixed(1)}%`;
 };
 
-const encodedFixture = {
+export const encodedHouseholdFixture = {
   householdName: "Carlos & Maria",
   city: "Toronto",
   periodLabel: "October 2026",
@@ -174,4 +174,4 @@ const encodedFixture = {
 };
 
 export const householdFixture: HouseholdSnapshot =
-  Schema.decodeUnknownSync(HouseholdSnapshot)(encodedFixture);
+  Schema.decodeUnknownSync(HouseholdSnapshot)(encodedHouseholdFixture);
