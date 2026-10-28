@@ -1,0 +1,35 @@
+{
+  "name": "@expendiru/frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run --project unit",
+    "lint": "oxlint src"
+  },
+  "dependencies": {
+    "@effect/platform-browser": "catalog:",
+    "@expendiru/api": "workspace:*",
+    "@expendiru/domain": "workspace:*",
+    "@foldkit/ui": "catalog:",
+    "@stylexjs/stylex": "catalog:",
+    "effect": "catalog:",
+    "foldkit": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@foldkit/devtools": "catalog:",
+    "@foldkit/devtools-mcp": "catalog:",
+    "@foldkit/oxlint-plugin": "catalog:",
+    "@foldkit/vite-plugin": "catalog:",
+    "@stylexjs/unplugin": "catalog:",
+    "@types/node": "catalog:",
+    "happy-dom": "catalog:",
+    "oxlint": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

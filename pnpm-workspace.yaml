@@ -1,0 +1,45 @@
+packages:
+  - packages/*
+
+# Same release-age gate as Effect-TS/cafe. Alchemy and Effect move fast;
+# everything else must have been published for at least three days.
+minimumReleaseAge: 4320
+minimumReleaseAgeExclude:
+  - effect
+  - alchemy
+  - "@alchemy.run/*"
+
+catalog:
+  "@alchemy.run/frontend-frameworks": 2.0.0-beta.81
+  "@effect/platform-browser": 4.0.0
+  "@effect/platform-bun": 4.0.0
+  "@effect/platform-node": 4.0.0
+  "@effect/vitest": 4.0.0
+  "@foldkit/devtools": 0.165.0
+  "@foldkit/devtools-mcp": 0.24.0
+  "@foldkit/oxlint-plugin": 0.15.1
+  "@foldkit/ui": 0.165.0
+  "@foldkit/vite-plugin": 0.26.0
+  "@stylexjs/stylex": 0.19.1
+  "@stylexjs/unplugin": 0.19.1
+  "@types/node": ^25.9.9
+  alchemy: 2.0.0-beta.81
+  effect: 4.0.0
+  foldkit: 0.165.0
+  happy-dom: ^20.14.5
+  hono: ^4.13.12
+  oxlint: ^1.85.0
+  typescript: ^7.0.2
+  vite: ^8.3.1
+  vitest: ^5.0.2
+
+allowBuilds:
+  esbuild: true
+  workerd: true
+
+overrides:
+  hono: "catalog:"
+  # platform-* 4.0.0 depends on ^4.0.0, which floats to a shared build that
+  # imports effect/Path.make. Effect 4.0.0 does not export that. Pin the
+  # shared package that shipped with Effect 4.0.0.
+  "@effect/platform-node-shared": 4.0.0

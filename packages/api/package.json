@@ -1,0 +1,19 @@
+{
+  "name": "@expendiru/api",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "oxlint src"
+  },
+  "dependencies": {
+    "@expendiru/domain": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "oxlint": "catalog:",
+    "typescript": "catalog:"
+  }
+}
