@@ -8,7 +8,7 @@ import { Runtime, type Update } from "foldkit";
 import { modifyFields } from "foldkit/struct";
 import { LoadSnapshot, LoadSpend } from "./command.ts";
 import { Message } from "./message.ts";
-import { Model, Refresh, initialModel } from "./model.ts";
+import { Model, Refresh, SpendMark, initialModel, sameSpendMark } from "./model.ts";
 
 export { LoadSnapshot, LoadSpend } from "./command.ts";
 
@@ -50,6 +50,9 @@ export const update = (model: Model, message: Message) =>
     ClickedChart: ({ mode }) => ({
       model: modifyFields(model, {
         spendChart: () => mode,
+        spendFocus: () => SpendMark.Idle(),
+        spendHover: () => SpendMark.Idle(),
+        spendHidden: () => [],
       }),
     }),
     ChangedSpendFilter: ({ filter }) => ({
@@ -60,11 +63,36 @@ export const update = (model: Model, message: Message) =>
     ClickedResetSpend: () => ({
       model: modifyFields(model, {
         spendFilter: () => defaultSpendFilter(model.spend.period.from, model.spend.period.to),
+        spendFocus: () => SpendMark.Idle(),
+        spendHover: () => SpendMark.Idle(),
+        spendHidden: () => [],
       }),
     }),
     ClickedRetrySpend: () => ({
       model,
       commands: [LoadSpend()],
+    }),
+    ClickedSpendMark: ({ mark }) => ({
+      model: modifyFields(model, {
+        spendFocus: (current) =>
+          sameSpendMark(current, mark) ? SpendMark.Idle() : mark,
+      }),
+    }),
+    HoveredSpendMark: ({ mark }) => ({
+      model: modifyFields(model, {
+        spendHover: () => mark,
+      }),
+    }),
+    ClearedSpendHover: () => ({
+      model: modifyFields(model, {
+        spendHover: () => SpendMark.Idle(),
+      }),
+    }),
+    ToggledSpendSeries: ({ key }) => ({
+      model: modifyFields(model, {
+        spendHidden: (hidden) => toggleHidden(hidden, key),
+        spendFocus: (focus) => (focusKey(focus) === key ? SpendMark.Idle() : focus),
+      }),
     }),
   });
 
@@ -80,8 +108,39 @@ const replaceSpend = (model: Model, feed: SpendFeed): Model => {
     spend: () => feed,
     spendRefresh: () => Refresh.Idle(),
     spendFilter: () => nextFilter,
+    spendFocus: () => SpendMark.Idle(),
+    spendHover: () => SpendMark.Idle(),
+    spendHidden: () => [],
   });
 };
+
+const toggleHidden = (hidden: ReadonlyArray<string>, key: string): ReadonlyArray<string> => {
+  const next: Array<string> = [];
+  let found = false;
+
+  for (const item of hidden) {
+    if (item === key) {
+      found = true;
+      continue;
+    }
+
+    next.push(item);
+  }
+
+  if (!found) {
+    next.push(key);
+  }
+
+  return next;
+};
+
+const focusKey = (focus: SpendMark): string =>
+  SpendMark.match(focus, {
+    Idle: () => "",
+    Bucket: ({ key }) => key,
+    Merchant: ({ key }) => key,
+    Day: ({ key }) => key,
+  });
 
 const replaceSnapshot = (
   model: Model,

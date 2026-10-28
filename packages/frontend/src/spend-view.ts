@@ -2,20 +2,30 @@ import {
   type ChartMode,
   type SpendFilter,
   SpendFilter as SpendFilterSchema,
+  formatCad,
 } from "@expendiru/domain";
 import { Button, Checkbox, Input, Select } from "@foldkit/ui";
+import { Option } from "effect";
 import type { Html, HtmlBuilder } from "foldkit/html";
 import * as stylex from "@stylexjs/stylex";
+import { chartClipInset } from "./chart-clip.ts";
 import { Message } from "./message.ts";
-import { type Model, Refresh } from "./model.ts";
+import { type Model, Refresh, SpendMark, sameSpendMark } from "./model.ts";
 import {
-  type SpendChoice,
+  type PresentedSpend,
+  type SpendRow,
   lineChartHeight,
   lineChartWidth,
   pieRadius,
   presentSpend,
 } from "./spend-present.ts";
 import { palette, styleAttributes, styles } from "./theme.stylex.ts";
+
+const chartModes: ReadonlyArray<{ readonly mode: ChartMode; readonly label: string }> = [
+  { mode: "pie", label: "Pie" },
+  { mode: "bar", label: "Bar" },
+  { mode: "line", label: "Line" },
+];
 
 const pendingChoice = (value: string): SpendFilter["pending"] => {
   if (value === "true" || value === "false" || value === "unknown") {
@@ -40,7 +50,7 @@ const optionNodes = (
   selected: string,
   anyValue: string,
   anyLabel: string,
-  choices: ReadonlyArray<SpendChoice>,
+  choices: ReturnType<typeof presentSpend>["people"],
   h: HtmlBuilder<Message>,
 ): ReadonlyArray<Html> => {
   const nodes: Array<Html> = [
@@ -65,7 +75,7 @@ const labeledSelect = (
   selected: string,
   anyValue: string,
   anyLabel: string,
-  choices: ReadonlyArray<SpendChoice>,
+  choices: ReturnType<typeof presentSpend>["people"],
   onChange: (value: string) => Message,
   h: HtmlBuilder<Message>,
 ): Html =>
@@ -118,44 +128,164 @@ const labeledInput = (
     h,
   );
 
-const modeButton = (
-  mode: ChartMode,
-  label: string,
-  active: ChartMode,
+const isHidden = (hidden: ReadonlyArray<string>, key: string): boolean => {
+  for (const item of hidden) {
+    if (item === key) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const engaged = (hover: SpendMark, focus: SpendMark): boolean =>
+  !sameSpendMark(hover, SpendMark.Idle()) || !sameSpendMark(focus, SpendMark.Idle());
+
+const dimmed = (hover: SpendMark, focus: SpendMark, mark: SpendMark): boolean =>
+  engaged(hover, focus) &&
+  !sameSpendMark(hover, mark) &&
+  !sameSpendMark(focus, mark);
+
+const rowMark = (chart: ChartMode, row: SpendRow): SpendMark => {
+  if (chart === "bar") {
+    return SpendMark.Merchant({ key: row.merchantKey });
+  }
+
+  if (chart === "line") {
+    return SpendMark.Day({ key: row.date });
+  }
+
+  return SpendMark.Bucket({ key: row.bucketKey });
+};
+
+const tooltipText = (presented: PresentedSpend, hover: SpendMark): string =>
+  SpendMark.match(hover, {
+    Idle: () => "",
+    Bucket: ({ key }) => {
+      for (const ring of presented.rings) {
+        if (ring.key === key) {
+          return `${ring.label} · ${ring.amountLabel} · ${ring.percentLabel}`;
+        }
+      }
+
+      return "";
+    },
+    Merchant: ({ key }) => {
+      for (const bar of presented.bars) {
+        if (bar.key === key) {
+          return `${bar.label} · ${bar.amountLabel}`;
+        }
+      }
+
+      return "";
+    },
+    Day: ({ key }) => {
+      for (const point of presented.line.points) {
+        if (point.date === key) {
+          return `${point.date} · ${formatCad(point.cents)}`;
+        }
+      }
+
+      return "";
+    },
+  });
+
+const chartSwitch = (active: ChartMode, h: HtmlBuilder<Message>): Html =>
+  h.div([...styleAttributes(h, stylex.props(styles.switchTrack))], [
+    h.div([...styleAttributes(h, stylex.props(styles.switchStack))], [
+      h.div(
+        [
+          h.Role("group"),
+          h.AriaLabel("Chart mode"),
+          ...styleAttributes(h, stylex.props(styles.switchGrid)),
+        ],
+        chartModes.map((item) =>
+          h.button(
+            [
+              h.Type("button"),
+              h.AriaPressed(active === item.mode ? "true" : "false"),
+              h.OnClick(Message.ClickedChart({ mode: item.mode })),
+              ...styleAttributes(h, stylex.props(styles.switchButton)),
+            ],
+            [item.label],
+          ),
+        ),
+      ),
+      h.div(
+        [
+          h.AriaHidden(true),
+          h.DataAttribute("clip", active),
+          ...styleAttributes(
+            h,
+            stylex.props(styles.switchActive, styles.switchClip(chartClipInset(active))),
+          ),
+        ],
+        chartModes.map((item) =>
+          h.span([...styleAttributes(h, stylex.props(styles.switchLabel))], [item.label]),
+        ),
+      ),
+    ]),
+  ]);
+
+const legend = (
+  items: ReadonlyArray<{
+    readonly key: string;
+    readonly label: string;
+    readonly detail: string;
+    readonly color: string;
+    readonly mark: SpendMark;
+  }>,
+  hidden: ReadonlyArray<string>,
+  hover: SpendMark,
+  focus: SpendMark,
   h: HtmlBuilder<Message>,
 ): Html =>
-  Button.view(
-    {
-      type: "button",
-      onClick: Message.ClickedChart({ mode }),
-      toView: (attributes) =>
+  h.ul([...styleAttributes(h, stylex.props(styles.legend))], [
+    ...items.map((item) => {
+      const off = isHidden(hidden, item.key);
+
+      return h.keyed("li")(item.key, [], [
         h.button(
           [
-            ...attributes.button,
-            h.AriaPressed(active === mode ? "true" : "false"),
+            h.Type("button"),
+            h.AriaPressed(off ? "false" : "true"),
+            h.AriaLabel(`Toggle ${item.label}`),
+            h.OnClick(Message.ToggledSpendSeries({ key: item.key })),
+            h.OnMouseEnter(Message.HoveredSpendMark({ mark: item.mark })),
+            h.OnMouseLeave(Message.ClearedSpendHover()),
             ...styleAttributes(
               h,
-              active === mode
-                ? stylex.props(styles.button, styles.buttonOn)
-                : stylex.props(styles.button),
+              off || dimmed(hover, focus, item.mark)
+                ? stylex.props(styles.legendButton, styles.markDim)
+                : stylex.props(styles.legendButton),
             ),
           ],
-          [label],
+          [
+            h.span([...styleAttributes(h, stylex.props(styles.swatch(item.color)))]),
+            h.span([], [`${item.label} · ${item.detail}`]),
+          ],
         ),
-    },
-    h,
+      ]);
+    }),
+  ]);
+
+const activate = (message: Message, h: HtmlBuilder<Message>) =>
+  h.OnKeyDownPreventDefault((key) =>
+    key === "Enter" || key === " " ? Option.some(message) : Option.none(),
   );
 
 const pieChart = (
-  rings: ReturnType<typeof presentSpend>["rings"],
-  replay: number,
+  presented: PresentedSpend,
+  hover: SpendMark,
+  focus: SpendMark,
+  hidden: ReadonlyArray<string>,
   h: HtmlBuilder<Message>,
 ): Html =>
   h.div([...styleAttributes(h, stylex.props(styles.chartRow))], [
     h.svg(
       [
         h.ViewBox("0 0 240 240"),
-        h.Role("img"),
+        h.Role("group"),
         h.AriaLabel("Spending by bucket"),
         ...styleAttributes(h, stylex.props(styles.chartPie)),
       ],
@@ -165,80 +295,122 @@ const pieChart = (
           h.Cy("120"),
           h.R(String(pieRadius)),
           h.Fill("none"),
-          h.Stroke(palette.gray),
-          h.StrokeWidth("36"),
+          h.Stroke(palette.track),
+          h.StrokeWidth("22"),
+          h.Attribute("pointer-events", "none"),
         ]),
-        ...rings.map((ring, index) =>
-          h.keyed("circle")(
-            `${ring.key}-${replay}`,
+        ...presented.rings.map((ring) => {
+          const mark = SpendMark.Bucket({ key: ring.key });
+          const message = Message.ClickedSpendMark({ mark });
+
+          return h.keyed("circle")(
+            ring.key,
             [
               h.Cx("120"),
               h.Cy("120"),
               h.R(String(pieRadius)),
               h.Fill("none"),
               h.Stroke(ring.color),
-              h.StrokeWidth("36"),
+              h.StrokeWidth("22"),
               h.StrokeLinecap("butt"),
               h.StrokeDasharray(
                 `${ring.length.toFixed(2)} ${(ring.circumference - ring.length).toFixed(2)}`,
               ),
               h.StrokeDashoffset(ring.offset.toFixed(2)),
+              h.Role("button"),
+              h.Tabindex(0),
+              h.AriaLabel(`Show ${ring.label}`),
+              h.AriaPressed(sameSpendMark(focus, mark) ? "true" : "false"),
+              h.OnClick(message),
+              h.OnMouseEnter(Message.HoveredSpendMark({ mark })),
+              h.OnMouseLeave(Message.ClearedSpendHover()),
+              activate(message, h),
               ...styleAttributes(
                 h,
-                stylex.props(
-                  styles.pieDraw(ring.offset + ring.length, ring.offset, index * 80),
-                ),
+                dimmed(hover, focus, mark)
+                  ? stylex.props(styles.mark, styles.markDim)
+                  : stylex.props(styles.mark),
               ),
             ],
-          ),
-        ),
+            [h.title([], [`${ring.label} · ${ring.amountLabel}`])],
+          );
+        }),
       ],
     ),
-    h.ul([...styleAttributes(h, stylex.props(styles.legend))], [
-      ...rings.map((ring, index) =>
-        h.keyed("li")(
-          `${ring.key}-${replay}`,
-          [...styleAttributes(h, stylex.props(styles.legendItem, styles.rise(120 + index * 70)))],
-          [
-            h.span([
-              ...styleAttributes(h, stylex.props(styles.swatch(ring.color))),
-            ]),
-            h.span([], [`${ring.label} · ${ring.amountLabel} · ${ring.percentLabel}`]),
-          ],
-        ),
-      ),
-    ]),
+    legend(
+      presented.rings.map((ring) => ({
+        key: ring.key,
+        label: ring.label,
+        detail: `${ring.amountLabel} · ${ring.percentLabel}`,
+        color: ring.color,
+        mark: SpendMark.Bucket({ key: ring.key }),
+      })),
+      hidden,
+      hover,
+      focus,
+      h,
+    ),
   ]);
 
 const barChart = (
-  bars: ReturnType<typeof presentSpend>["bars"],
-  replay: number,
+  presented: PresentedSpend,
+  hover: SpendMark,
+  focus: SpendMark,
+  hidden: ReadonlyArray<string>,
   h: HtmlBuilder<Message>,
 ): Html =>
   h.div(
     [
-      h.Role("img"),
+      h.Role("group"),
       h.AriaLabel("Spending by merchant"),
       ...styleAttributes(h, stylex.props(styles.chartFrame)),
     ],
-    bars.map((bar, index) =>
-      h.keyed("div")(
-        `${bar.key}-${replay}`,
-        [...styleAttributes(h, stylex.props(styles.barRow, styles.rise(index * 110)))],
-        [
-          h.span([...styleAttributes(h, stylex.props(styles.barLabel))], [bar.label]),
-          h.div([...styleAttributes(h, stylex.props(styles.track, styles.barTrack))], [
-            h.div([
-              ...styleAttributes(
-                h,
-                stylex.props(styles.barFill(bar.widthPercent, bar.color, 80 + index * 110)),
-              ),
+    [
+      ...presented.bars.map((bar) => {
+        const mark = SpendMark.Merchant({ key: bar.key });
+        const message = Message.ClickedSpendMark({ mark });
+
+        return h.button(
+          [
+            h.Key(bar.key),
+            h.Type("button"),
+            h.AriaLabel(`Show ${bar.label}`),
+            h.AriaPressed(sameSpendMark(focus, mark) ? "true" : "false"),
+            h.OnClick(message),
+            h.OnMouseEnter(Message.HoveredSpendMark({ mark })),
+            h.OnMouseLeave(Message.ClearedSpendHover()),
+            ...styleAttributes(
+              h,
+              dimmed(hover, focus, mark)
+                ? stylex.props(styles.barButton, styles.markDim)
+                : stylex.props(styles.barButton),
+            ),
+          ],
+          [
+            h.span([...styleAttributes(h, stylex.props(styles.barLabel))], [bar.label]),
+            h.span([...styleAttributes(h, stylex.props(styles.chartTrack))], [
+              h.span([
+                ...styleAttributes(h, stylex.props(styles.barFill(bar.widthPercent, bar.color))),
+              ]),
             ]),
-          ]),
-          h.span([...styleAttributes(h, stylex.props(styles.barAmount))], [bar.amountLabel]),
-        ],
+            h.span([...styleAttributes(h, stylex.props(styles.barAmount))], [bar.amountLabel]),
+          ],
+        );
+      }),
+      legend(
+        presented.bars.map((bar) => ({
+          key: bar.key,
+          label: bar.label,
+          detail: bar.amountLabel,
+          color: bar.color,
+          mark: SpendMark.Merchant({ key: bar.key }),
+        })),
+        hidden,
+        hover,
+        focus,
+        h,
       ),
-    ),
+    ],
   );
 
 const gridLine = (
@@ -252,27 +424,25 @@ const gridLine = (
     h.X2(String(lineChartWidth - 16)),
     h.Y1(String(y)),
     h.Y2(String(y)),
-    h.Stroke(ink ? palette.ink : palette.gray),
-    h.StrokeWidth("2"),
+    h.Stroke(ink ? palette.ink : palette.line),
+    h.StrokeWidth("1"),
     h.ShapeRendering("crispEdges"),
     h.VectorEffect("non-scaling-stroke"),
   ]);
 
 const lineChart = (
-  line: ReturnType<typeof presentSpend>["line"],
-  replay: number,
+  presented: PresentedSpend,
+  hover: SpendMark,
+  focus: SpendMark,
   h: HtmlBuilder<Message>,
-): Html =>
-  h.div(
-    [
-      h.Key(`line-${replay}`),
-      ...styleAttributes(h, stylex.props(styles.chartFrame, styles.lineDraw)),
-    ],
-    [
+): Html => {
+  const line = presented.line;
+
+  return h.div([...styleAttributes(h, stylex.props(styles.chartFrame))], [
     h.svg(
       [
         h.ViewBox(`0 0 ${lineChartWidth} ${lineChartHeight}`),
-        h.Role("img"),
+        h.Role("group"),
         h.AriaLabel("Spending by day"),
         h.PreserveAspectRatio("xMidYMid meet"),
         ...styleAttributes(h, stylex.props(styles.chartLine)),
@@ -284,23 +454,43 @@ const lineChart = (
         h.polyline([
           h.Points(line.polyline),
           h.Fill("none"),
-          h.Stroke(palette.ink),
-          h.StrokeWidth("2"),
-          h.StrokeLinecap("round"),
+          h.Stroke(palette.accent),
+          h.StrokeWidth("1.5"),
           h.StrokeLinejoin("round"),
+          h.StrokeLinecap("round"),
           h.VectorEffect("non-scaling-stroke"),
+          h.Attribute("pointer-events", "none"),
         ]),
-        ...line.points.map((point) =>
-          h.keyed("circle")(
+        ...line.points.map((point) => {
+          const mark = SpendMark.Day({ key: point.date });
+          const message = Message.ClickedSpendMark({ mark });
+          const hot = sameSpendMark(focus, mark) || sameSpendMark(hover, mark);
+
+          return h.keyed("circle")(
             point.date,
             [
               h.Cx(String(point.x)),
               h.Cy(String(point.y)),
-              h.R("4"),
-              h.Fill(palette.blueInk),
+              h.R(hot ? "5" : "3.5"),
+              h.Fill(hot ? palette.accent : palette.ink),
+              h.Role("button"),
+              h.Tabindex(0),
+              h.AriaLabel(`Show ${point.date}`),
+              h.AriaPressed(sameSpendMark(focus, mark) ? "true" : "false"),
+              h.OnClick(message),
+              h.OnMouseEnter(Message.HoveredSpendMark({ mark })),
+              h.OnMouseLeave(Message.ClearedSpendHover()),
+              activate(message, h),
+              ...styleAttributes(
+                h,
+                dimmed(hover, focus, mark)
+                  ? stylex.props(styles.mark, styles.markDim)
+                  : stylex.props(styles.mark),
+              ),
             ],
-          ),
-        ),
+            [h.title([], [`${point.date} · ${formatCad(point.cents)}`])],
+          );
+        }),
       ],
     ),
     h.p(
@@ -308,49 +498,65 @@ const lineChart = (
       [`${line.firstDate} → ${line.lastDate} · peak ${line.maxLabel}`],
     ),
   ]);
+};
 
 const transactionList = (
-  rows: ReturnType<typeof presentSpend>["rows"],
-  replay: number,
+  chart: ChartMode,
+  rows: ReadonlyArray<SpendRow>,
+  hover: SpendMark,
+  focus: SpendMark,
   h: HtmlBuilder<Message>,
 ): Html =>
   h.ul([...styleAttributes(h, stylex.props(styles.txList))], [
-    ...rows.map((row, index) =>
-      h.keyed("li")(
-        `${row.id}-${replay}`,
-        [
-          ...styleAttributes(
-            h,
-            stylex.props(styles.txRow, styles.rise(Math.min(index, 14) * 40)),
-          ),
-        ],
-        [
-          h.div([], [
-            h.p([...styleAttributes(h, stylex.props(styles.txTitle))], [
-              `${row.date} · ${row.title}`,
-              row.pending ? " · pending" : "",
+    ...rows.map((row) => {
+      const mark = rowMark(chart, row);
+      const message = Message.ClickedSpendMark({ mark });
+
+      return h.keyed("li")(row.id, [], [
+        h.button(
+          [
+            h.Type("button"),
+            h.AriaPressed(sameSpendMark(focus, mark) ? "true" : "false"),
+            h.OnClick(message),
+            h.OnMouseEnter(Message.HoveredSpendMark({ mark })),
+            h.OnMouseLeave(Message.ClearedSpendHover()),
+            ...styleAttributes(
+              h,
+              dimmed(hover, focus, mark)
+                ? stylex.props(styles.txRow, styles.markDim)
+                : stylex.props(styles.txRow),
+            ),
+          ],
+          [
+            h.div([], [
+              h.p([...styleAttributes(h, stylex.props(styles.txTitle))], [
+                `${row.date} · ${row.title}`,
+                row.pending ? " · pending" : "",
+              ]),
+              h.p([...styleAttributes(h, stylex.props(styles.caption))], [row.detail]),
+              h.p([...styleAttributes(h, stylex.props(styles.caption))], [row.category]),
             ]),
-            h.p([...styleAttributes(h, stylex.props(styles.caption))], [row.detail]),
-            h.p([...styleAttributes(h, stylex.props(styles.caption))], [row.category]),
-          ]),
-          h.p(
-            [
-              ...styleAttributes(
-                h,
-                stylex.props(row.incoming ? styles.amountIn : styles.amountOut),
-              ),
-            ],
-            [row.amountLabel],
-          ),
-        ],
-      ),
-    ),
+            h.p(
+              [
+                ...styleAttributes(
+                  h,
+                  stylex.props(row.incoming ? styles.amountIn : styles.amountOut),
+                ),
+              ],
+              [row.amountLabel],
+            ),
+          ],
+        ),
+      ]);
+    }),
   ]);
 
 const chartBody = (
   mode: ChartMode,
-  presented: ReturnType<typeof presentSpend>,
-  replay: number,
+  presented: PresentedSpend,
+  hover: SpendMark,
+  focus: SpendMark,
+  hidden: ReadonlyArray<string>,
   h: HtmlBuilder<Message>,
 ): Html => {
   if (presented.chartEmpty) {
@@ -365,14 +571,14 @@ const chartBody = (
   }
 
   if (mode === "bar") {
-    return barChart(presented.bars, replay, h);
+    return barChart(presented, hover, focus, hidden, h);
   }
 
   if (mode === "line") {
-    return lineChart(presented.line, replay, h);
+    return lineChart(presented, hover, focus, h);
   }
 
-  return pieChart(presented.rings, replay, h);
+  return pieChart(presented, hover, focus, hidden, h);
 };
 
 const spendNotice = (refresh: Refresh, h: HtmlBuilder<Message>): Html =>
@@ -381,7 +587,7 @@ const spendNotice = (refresh: Refresh, h: HtmlBuilder<Message>): Html =>
     Failed: ({ error }) =>
       h.div([...styleAttributes(h, stylex.props(styles.notice))], [
         h.p(
-          [...styleAttributes(h, stylex.props(styles.detail))],
+          [...styleAttributes(h, stylex.props(styles.noticeText))],
           [`Couldn't refresh spending from the household API. Showing the stub. ${error}`],
         ),
         Button.view(
@@ -401,30 +607,36 @@ const spendNotice = (refresh: Refresh, h: HtmlBuilder<Message>): Html =>
 
 export const spendView = (model: Model, h: HtmlBuilder<Message>): Html => {
   const filter = model.spendFilter;
-  const presented = presentSpend(model.spend, filter, model.spendChart);
-  const chart = chartBody(model.spendChart, presented, model.replay, h);
+
+  const presented = presentSpend(
+    model.spend,
+    filter,
+    model.spendChart,
+    model.spendFocus,
+    model.spendHidden,
+  );
+
+  const chart = chartBody(
+    model.spendChart,
+    presented,
+    model.spendHover,
+    model.spendFocus,
+    model.spendHidden,
+    h,
+  );
+
+  const focused = !sameSpendMark(model.spendFocus, SpendMark.Idle());
 
   return h.section([...styleAttributes(h, stylex.props(styles.shell))], [
     h.h2([...styleAttributes(h, stylex.props(styles.heading))], ["Spending"]),
     h.p(
       [...styleAttributes(h, stylex.props(styles.lede))],
-      [
-        "Pie, bar, and line share one filter across the feed period. Search, person, bucket, and dates narrow it. Positive amounts are money in. Charts add up money out.",
-      ],
+      ["Pie, bar, and line share one filter. Choose a mark to narrow the list."],
     ),
     spendNotice(model.spendRefresh, h),
-    h.div(
-      [
-        h.Role("group"),
-        h.AriaLabel("Chart mode"),
-        ...styleAttributes(h, stylex.props(styles.nav)),
-      ],
-      [
-        modeButton("pie", "Pie", model.spendChart, h),
-        modeButton("bar", "Bar", model.spendChart, h),
-        modeButton("line", "Line", model.spendChart, h),
-      ],
-    ),
+    h.div([...styleAttributes(h, stylex.props(styles.nav))], [
+      chartSwitch(model.spendChart, h),
+    ]),
     h.div([...styleAttributes(h, stylex.props(styles.filters))], [
       labeledInput(
         "spend-search",
@@ -601,22 +813,31 @@ export const spendView = (model: Model, h: HtmlBuilder<Message>): Html => {
         },
         h,
       ),
+      focused
+        ? Button.view(
+            {
+              type: "button",
+              onClick: Message.ClickedSpendMark({ mark: SpendMark.Idle() }),
+              toView: (attributes) =>
+                h.button(
+                  [...attributes.button, ...styleAttributes(h, stylex.props(styles.button))],
+                  ["Clear selection"],
+                ),
+            },
+            h,
+          )
+        : h.empty,
     ]),
     h.p([...styleAttributes(h, stylex.props(styles.detail))], [presented.chartTitle]),
     h.p([...styleAttributes(h, stylex.props(styles.lede))], [presented.countLabel]),
-    h.div(
-      [
-        h.Key(`chart-${model.spendChart}-${model.replay}`),
-        ...styleAttributes(h, stylex.props(styles.rise(60))),
-      ],
-      [chart],
+    chart,
+    h.p(
+      [...styleAttributes(h, stylex.props(styles.tooltip))],
+      [tooltipText(presented, model.spendHover)],
     ),
     h.h3([...styleAttributes(h, stylex.props(styles.heading))], ["Transactions"]),
     presented.rows.length === 0
-      ? h.p(
-          [...styleAttributes(h, stylex.props(styles.lede))],
-          ["Nothing in this filter."],
-        )
-      : transactionList(presented.rows, model.replay, h),
+      ? h.p([...styleAttributes(h, stylex.props(styles.lede))], ["Nothing in this filter."])
+      : transactionList(model.spendChart, presented.rows, model.spendHover, model.spendFocus, h),
   ]);
 };

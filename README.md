@@ -84,9 +84,9 @@ To add another tree, append a `clone_one` line in `scripts/clone-references.sh`.
 1. Emergency fund progress.
 2. Room left on both Visa cards (placeholder labels, no account numbers).
 3. Household, Together, Carlos, and Maria against a straight-line pace for 28 Oct 2026.
-4. Spending: one pie / bar / line toggle, then the transactions in that same filter.
+4. Spending: one pie / bar / line control, then the transactions in that same filter. A slice, bar, or day narrows the list. The legend hides a series.
 
-Replay restarts the bar animation. Sketch frames are generated paths, in the same spirit as the rough.js cards in the theme reference. Meter tracks sit on the paper color with an ink border, and the fill uses the darker ink tones so a small percent stays visible on the pastel cards.
+The chart control is a duplicated tab layer clipped to the active third, so the accent fill and the label color move together. Money uses tabular figures. Meters are hairline tracks: green when spending is under pace, red when it is over, and the accent when it is on pace.
 
 ## Spending
 
@@ -94,7 +94,7 @@ Replay restarts the bar animation. Sketch frames are generated paths, in the sam
 
 The default filter is the feed period (`period.from` through `period.to`), `counts_toward_budget=yes`, and rent / `transfer_or_payment` / income hidden. On the Jul–Oct drop that is the whole window, so the pie matches Household Finance: Carlos about $11.4k, Maria about $6.0k, household about $3.9k, together about $2.4k, move one-offs about $1.6k. Charts sum money out (negative amounts). The list is the same filtered set. Search matches merchant, account, person, bucket, and Plaid category text. Category filters use `category_primary`, `category_detailed`, and `category_confidence`.
 
-Replay restarts the ink-draw on the meters, the pie, the bars, and the line. Chart switches replay that drawing too. `prefers-reduced-motion` leaves the final frame in place.
+Choosing a pie slice, merchant bar, or day filters that same list. Choosing it again, or Clear selection, restores the list. The legend toggles a series out of both the chart and the list. Chart geometry stays put; the mode control is the one clip-path move, and press states scale to 0.97. `prefers-reduced-motion` drops those transforms.
 
 Check a local drop against those totals (no-op when the directory is missing):
 
@@ -114,30 +114,23 @@ The script reads `/workspace/finance/expendiru-feed` when that directory contain
 
 ## Theme tokens
 
-StyleX variables live in `packages/frontend/src/theme.stylex.ts` (`tokens`). The `.stylex.ts` suffix is what StyleX requires for `defineVars`. Component styles use those variables. SVG fills use the matching `palette` object, because attributes are not CSS. `@font-face` for Excalifont is in `packages/frontend/src/styles.css` (OFL, see `public/fonts/OFL.txt`), with Comic Sans / cursive as the fallback.
+StyleX variables live in `packages/frontend/src/theme.stylex.ts` (`tokens`). The `.stylex.ts` suffix is what StyleX requires for `defineVars`. Component styles use those variables. SVG strokes use the matching `palette` object, because attributes are not CSS. Type is the system sans. Series colors for the charts live in `seriesPalette` — one accent plus quiet neutrals, not a status red.
 
-| Token | Theme reference |
+| Token | Role |
 | --- | --- |
-| `paper` `#fbfaf6` | page background |
-| `grid` `#eeece4` | dot grid (the page gradient uses this hex; StyleX variables cannot sit inside that gradient string) |
-| `ink` `#1e1e1e` | text and sketch stroke |
-| `muted` `#5c5f66` | secondary copy |
-| `blue` `#a5d8ff` | Carlos's Visa, Household bucket |
-| `green` `#b2f2bb` | emergency fund, under-pace fill |
-| `red` `#ffc9c9` | over-pace fill, API notice |
-| `yellow` `#ffec99` | Together bucket, chunky buttons |
-| `orange` `#ffd8a8` | Maria's Visa, Maria's bucket |
-| `gray` `#e9ecef` | meter track |
-| `greenInk` `#2b8a3e` | under pace |
-| `redInk` `#c92a2a` | over pace |
-| `blueInk` `#1971c2` | on pace |
-| `orangeInk` `#e8590c` | reserved, matches the reference |
-| `grayInk` `#868e96` | footer |
-| `fontHand` | Excalifont, then Comic Sans, then cursive |
+| `paper` `#f4f4f5` | page background |
+| `surface` `#ffffff` | cards and controls |
+| `line` `#e4e4e7` | hairline borders |
+| `ink` `#18181b` | text |
+| `muted` `#71717a` | secondary copy |
+| `accent` `#5e6ad2` | the one accent: chart control, on-pace, visa meters |
+| `green` `#18794e` | under pace, money in |
+| `red` `#d1242f` | over pace, money out, failed refresh |
+| `track` `#ececee` | meter and bar tracks |
+| `easeOut` | `cubic-bezier(0.23, 1, 0.32, 1)` for press feedback |
+| `easeInOut` | `cubic-bezier(0.77, 0, 0.175, 1)` for the chart-mode clip |
 | `fontBody` | system sans |
-| `shadowChunk` / `shadowPressed` | `3px 3px 0` ink, then `1px 1px 0` while pressed |
-| `radiusCard` | `12px` |
-| `spaceSectionBlock` / `spaceSectionInline` | `44px` / `26px` |
+| `radius` | `10px` |
 
 ## Next: live Scotia and Wealthsimple
 

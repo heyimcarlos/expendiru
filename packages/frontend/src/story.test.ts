@@ -4,7 +4,7 @@ import { describe, expect, test } from "vitest";
 import { LoadSnapshot, LoadSpend } from "./command.ts";
 import { init, update } from "./main.ts";
 import { Message } from "./message.ts";
-import { Refresh, initialModel } from "./model.ts";
+import { Refresh, SpendMark, initialModel } from "./model.ts";
 
 describe("update", () => {
   test("replay bumps the animation generation and leaves the snapshot", () => {
@@ -65,6 +65,28 @@ describe("spend chart", () => {
       model((next) => {
         expect(next.spendChart).toBe("bar");
         expect(next.spend).toEqual(initialModel.spend);
+      }),
+    );
+  });
+
+  test("a mark toggles the shared focus and a mode change clears it", () => {
+    story(
+      update,
+      given(initialModel),
+      message(Message.ClickedSpendMark({ mark: SpendMark.Bucket({ key: "household" }) })),
+      model((next) => {
+        expect(next.spendFocus).toEqual(SpendMark.Bucket({ key: "household" }));
+      }),
+      message(Message.ClickedSpendMark({ mark: SpendMark.Bucket({ key: "household" }) })),
+      model((next) => {
+        expect(next.spendFocus).toEqual(SpendMark.Idle());
+      }),
+      message(Message.ClickedSpendMark({ mark: SpendMark.Merchant({ key: "Stub Lamp" }) })),
+      message(Message.ClickedChart({ mode: "line" })),
+      model((next) => {
+        expect(next.spendChart).toBe("line");
+        expect(next.spendFocus).toEqual(SpendMark.Idle());
+        expect(next.spendHidden).toEqual([]);
       }),
     );
   });
