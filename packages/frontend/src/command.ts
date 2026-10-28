@@ -15,6 +15,9 @@ const apiUrlConfig = ConfigProvider.layer(
   ),
 );
 
+export const apiBaseUrl = (configured: string): string =>
+  configured === "same-origin" ? "" : configured;
+
 const loadSnapshot = Effect.fn("Household.loadSnapshot")(
   function* () {
     const apiUrl = yield* Config.option(Config.String("VITE_API_URL"));
@@ -23,7 +26,10 @@ const loadSnapshot = Effect.fn("Household.loadSnapshot")(
       return Message.LoadedSnapshot({ snapshot: householdFixture });
     }
 
-    const client = yield* HttpApiClient.make(Api, { baseUrl: apiUrl.value });
+    const client = yield* HttpApiClient.make(Api, {
+      baseUrl: apiBaseUrl(apiUrl.value),
+    });
+
     const snapshot = yield* client.Household.getSnapshot();
 
     return Message.LoadedSnapshot({ snapshot });
@@ -48,7 +54,10 @@ const loadSpend = Effect.fn("Household.loadSpend")(
       return Message.LoadedSpend({ feed: spendStub });
     }
 
-    const client = yield* HttpApiClient.make(Api, { baseUrl: apiUrl.value });
+    const client = yield* HttpApiClient.make(Api, {
+      baseUrl: apiBaseUrl(apiUrl.value),
+    });
+
     const feed = yield* client.Household.getSpend();
 
     return Message.LoadedSpend({ feed });

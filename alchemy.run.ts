@@ -18,12 +18,17 @@ export default Alchemy.Stack(
 
     const web = yield* Cloudflare.Website.Foldkit("Web", {
       rootDir: "packages/frontend",
+      main: "src/edge.ts",
       compatibility: { date: "2026-10-28" },
       access: {
         policies: [householdAllowPolicy],
       },
       env: {
-        VITE_API_URL: api.url.as<string>(),
+        VITE_API_URL: "same-origin",
+        API: api,
+      },
+      assets: {
+        runWorkerFirst: true,
       },
     });
 

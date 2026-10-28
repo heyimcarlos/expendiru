@@ -1,7 +1,7 @@
 import { householdFixture, spendStub } from "@expendiru/domain";
 import { expect, it } from "@effect/vitest";
 import { Effect } from "effect";
-import { LoadSnapshot, LoadSpend } from "./command.ts";
+import { LoadSnapshot, LoadSpend, apiBaseUrl } from "./command.ts";
 import { Message } from "./message.ts";
 
 it.effect("loads the fixture when the api url is absent", () =>
@@ -20,5 +20,12 @@ it.effect("loads the spend stub when the api url is absent", () =>
     const message = yield* command.effect;
 
     expect(message).toEqual(Message.LoadedSpend({ feed: spendStub }));
+  }),
+);
+
+it.effect("keeps same-origin as a relative base url", () =>
+  Effect.sync(() => {
+    expect(apiBaseUrl("same-origin")).toBe("");
+    expect(apiBaseUrl("https://api.example")).toBe("https://api.example");
   }),
 );
