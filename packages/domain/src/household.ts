@@ -20,7 +20,7 @@ export const BucketId = Schema.Literals([
 
 export type BucketId = Schema.Schema.Type<typeof BucketId>;
 
-export const SnapshotSource = Schema.Literals(["fixture"]);
+export const SnapshotSource = Schema.Literals(["fixture", "live"]);
 
 export type SnapshotSource = Schema.Schema.Type<typeof SnapshotSource>;
 

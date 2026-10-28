@@ -11,7 +11,7 @@ Private household dashboard for Carlos and Maria in Toronto. This v1 is a thin C
 | **F**oldkit | Draws the home screen | `packages/frontend` |
 | **E**ffect | Types the snapshot and serves it | `packages/domain`, `packages/api`, `packages/backend` |
 
-`@expendiru/domain` is the household model (Canadian cents, emergency fund, two Visa placeholders, four buckets). `@expendiru/api` is the HTTP contract (`GET /snapshot`). The Worker implements it with `HouseholdSource.layer`. The Foldkit page renders that same fixture immediately, and refreshes from `VITE_API_URL` when Alchemy inlines one.
+`@expendiru/domain` is the household model (Canadian cents, emergency fund, two Visa placeholders, four buckets). `@expendiru/api` is the HTTP contract (`GET /snapshot`). The Worker implements it with `HouseholdSource.liveLayer`. The Foldkit page renders that same fixture immediately, and refreshes from `VITE_API_URL` when Alchemy inlines one.
 
 Effect code follows [AGENTS.md](AGENTS.md) and `.cursor/skills/effect`.
 
@@ -47,6 +47,7 @@ Inside the Nix shell, or with Node 22+ and pnpm 12:
 
 ```sh
 pnpm install
+cp packages/backend/src/live-snapshot.generated.stub.ts packages/backend/src/live-snapshot.generated.ts
 pnpm exec alchemy profile edit --add Cloudflare   # once per machine
 pnpm dev                                          # alchemy dev: Worker + Vite
 pnpm run deploy                                   # alchemy deploy (`pnpm deploy` is a pnpm built-in)
@@ -115,7 +116,9 @@ StyleX variables live in `packages/frontend/src/theme.stylex.ts` (`tokens`). The
 
 ## Next: live Scotia and Wealthsimple
 
-`HouseholdSource` in `packages/backend/src/source.ts` is the port. `HouseholdSource.layer` is the only implementation today: it decodes the fixture. Replace that layer with a client of the Household Finance bot and keep returning `HouseholdSnapshot` from `GET /snapshot`. Extend `SnapshotSource` when the payload is no longer a fixture. Do not put real account numbers in the repo; labels stay placeholders. ## Who can open the deployed app
+`HouseholdSource` in `packages/backend/src/source.ts` is the port. `HouseholdSource.layer` decodes the placeholder fixture; production uses `HouseholdSource.liveLayer`, which reads `live-snapshot.generated.ts` mapped from the Household Finance feed at `/workspace/finance/expendiru-feed` via `scripts/sync-expendiru-feed.py`. That generated file is gitignored — CI copies the stub so typecheck still works. Do not commit live balances or account numbers.
+
+## Who can open the deployed app
 
 Cloudflare Access is declared on both the API Worker and the Foldkit site. One allow policy admits only these Google accounts:
 
@@ -133,9 +136,9 @@ Anyone else, including other Google accounts, is denied. Do not add emails that 
 
 ## CI
 
-`.github/workflows/ci.yml` runs on pull requests and on pushes to `main`: `pnpm install --frozen-lockfile`, `pnpm typecheck`, `pnpm lint`, `pnpm test`. Node 22, pnpm 12.9.1.
+`.github/workflows/ci.yml` runs on pull requests and on pushes to `main`: `pnpm install --frozen-lockfile`, copy `packages/backend/src/live-snapshot.generated.stub.ts` to `live-snapshot.generated.ts`, `pnpm typecheck`, `pnpm lint`, `pnpm test`. Node 22, pnpm 12.9.1.
 
-`.github/workflows/deploy.yml` follows [Alchemy CI](https://alchemy.run/environments/ci/). Pushes to `main` deploy `--stage prod`. Pull requests deploy `--stage pr-<number>` and post a preview comment when `GITHUB_TOKEN` is present. Closing a pull request runs `alchemy destroy` for that stage and refuses to destroy `prod`.
+`.github/workflows/deploy.yml` follows [Alchemy CI](https://alchemy.run/environments/ci/). Pushes to `main` deploy `--stage prod`. Pull requests deploy `--stage pr-<number>` and post a preview comment when `GITHUB_TOKEN` is present. Closing a pull request runs `alchemy destroy` for that stage and refuses to destroy `prod`. Deploy and destroy copy the same stub after install so the gitignored module resolves.
 
 Deploy and destroy no-op until these Actions secrets exist:
 

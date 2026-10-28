@@ -15,3 +15,6 @@ node_modules/.stylex
 
 # Local checkouts of upstream repos. Recreate with scripts/clone-references.sh.
 .reference/
+
+# Live HF feed snapshot (scripts/sync-expendiru-feed.py). CI copies the stub.
+packages/backend/src/live-snapshot.generated.ts
