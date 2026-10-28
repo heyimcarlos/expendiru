@@ -16,7 +16,8 @@ import {
   sharePercent,
   totalOutflowCents,
 } from "@expendiru/domain";
-import { palette } from "./theme.stylex.ts";
+import { SpendMark } from "./model.ts";
+import { seriesPalette } from "./theme.stylex.ts";
 
 export type SpendChoice = {
   readonly value: string;
@@ -71,6 +72,8 @@ export type SpendRow = {
   readonly amountLabel: string;
   readonly pending: boolean;
   readonly incoming: boolean;
+  readonly bucketKey: string;
+  readonly merchantKey: string;
 };
 
 export type PresentedSpend = {
@@ -101,38 +104,38 @@ export const lineChartHeight = 220;
 
 const linePad = 16;
 
+export const seriesColor = (index: number): string => {
+  const color = seriesPalette[index % seriesPalette.length];
+
+  if (color !== undefined) {
+    return color;
+  }
+
+  return "#5e6ad2";
+};
+
 const bucketColor = (bucket: string, index: number): string => {
   if (bucket === "household") {
-    return palette.blue;
+    return seriesColor(0);
   }
 
   if (bucket === "together") {
-    return palette.yellow;
+    return seriesColor(1);
   }
 
   if (bucket === "carlos_personal") {
-    return palette.green;
+    return seriesColor(2);
   }
 
   if (bucket === "maria_personal") {
-    return palette.orange;
+    return seriesColor(3);
   }
 
   if (bucket === "move_oneoffs") {
-    return palette.red;
+    return seriesColor(4);
   }
 
-  const fallback = [palette.blueInk, palette.greenInk, palette.orangeInk, palette.gray];
-  const color = fallback[index % fallback.length];
-
-  return color === undefined ? palette.gray : color;
-};
-
-const inkColor = (index: number): string => {
-  const colors = [palette.blueInk, palette.greenInk, palette.orangeInk, palette.redInk];
-  const color = colors[index % colors.length];
-
-  return color === undefined ? palette.ink : color;
+  return seriesColor(index);
 };
 
 export const categoryLabel = (value: string): string => {
@@ -200,7 +203,7 @@ export const barMarks = (slices: ReadonlyArray<SpendSlice>): ReadonlyArray<BarMa
       label: slice.label,
       amountLabel: formatCad(slice.cents),
       widthPercent: max <= 0 ? 0 : (slice.cents / max) * 100,
-      color: inkColor(index),
+      color: seriesColor(index),
     });
     index += 1;
   }
@@ -341,6 +344,8 @@ const presentRow = (tx: LedgerTransaction): SpendRow => ({
   amountLabel: formatCad(tx.amountCents),
   pending: tx.pending === "true",
   incoming: tx.amountCents > 0,
+  bucketKey: tx.budgetBucket,
+  merchantKey: merchantLabel(tx),
 });
 
 const chartTitle = (chart: ChartMode): string => {
@@ -383,30 +388,101 @@ const lineBounds = (
   return { from, to };
 };
 
+const seriesKey = (chart: ChartMode, tx: LedgerTransaction): string => {
+  if (chart === "bar") {
+    return merchantLabel(tx);
+  }
+
+  if (chart === "line") {
+    return tx.date;
+  }
+
+  return tx.budgetBucket;
+};
+
+const withoutHidden = (
+  transactions: ReadonlyArray<LedgerTransaction>,
+  chart: ChartMode,
+  hidden: ReadonlyArray<string>,
+): ReadonlyArray<LedgerTransaction> => {
+  if (hidden.length === 0) {
+    return transactions;
+  }
+
+  const kept: Array<LedgerTransaction> = [];
+
+  for (const tx of transactions) {
+    const key = seriesKey(chart, tx);
+    let skip = false;
+
+    for (const hiddenKey of hidden) {
+      if (hiddenKey === key) {
+        skip = true;
+        break;
+      }
+    }
+
+    if (!skip) {
+      kept.push(tx);
+    }
+  }
+
+  return kept;
+};
+
+const matchingFocus = (
+  transactions: ReadonlyArray<LedgerTransaction>,
+  focus: SpendMark,
+): ReadonlyArray<LedgerTransaction> => {
+  const kept: Array<LedgerTransaction> = [];
+
+  for (const tx of transactions) {
+    const keep = SpendMark.match(focus, {
+      Idle: () => true,
+      Bucket: ({ key }) => tx.budgetBucket === key,
+      Merchant: ({ key }) => merchantLabel(tx) === key,
+      Day: ({ key }) => tx.date === key,
+    });
+
+    if (keep) {
+      kept.push(tx);
+    }
+  }
+
+  return kept;
+};
+
 export const presentSpend = (
   feed: SpendFeed,
   filter: SpendFilter,
   chart: ChartMode,
+  focus: SpendMark = SpendMark.Idle(),
+  hidden: ReadonlyArray<string> = [],
 ): PresentedSpend => {
   const queried = querySpend(feed.transactions, filter);
-  const outflow = totalOutflowCents(queried.transactions);
-  const slices = bucketSlices(queried.transactions);
-  const merchants = merchantBars(queried.transactions, 8);
-  const bounds = lineBounds(filter, queried.transactions);
+  const chartTransactions = withoutHidden(queried.transactions, chart, hidden);
+  const listTransactions = matchingFocus(chartTransactions, focus);
+  const outflow = totalOutflowCents(chartTransactions);
+  const listOutflow = totalOutflowCents(listTransactions);
+  const slices = bucketSlices(chartTransactions);
+  const merchants = merchantBars(chartTransactions, 8);
+  const bounds = lineBounds(filter, chartTransactions);
 
   const series =
-    bounds === undefined ? [] : dailySeries(queried.transactions, bounds.from, bounds.to);
+    bounds === undefined ? [] : dailySeries(chartTransactions, bounds.from, bounds.to);
+
+  const noun = listTransactions.length === 1 ? "transaction" : "transactions";
 
   return {
     totalLabel: formatCad(outflow),
-    countLabel: `${queried.transactions.length} transactions · ${formatCad(outflow)} out`,
+    countLabel: `${listTransactions.length} ${noun} · ${formatCad(listOutflow)} out`,
     chartTitle: chartTitle(chart),
     chartEmpty: !queried.amountValid || outflow === 0,
     amountError: !queried.amountValid,
     rings: pieRings(slices),
     bars: barMarks(merchants),
     line: series.length === 0 || outflow === 0 ? emptyLine() : lineChart(series),
-    rows: queried.transactions.map(presentRow),
+    rows: listTransactions.map(presentRow),
     people: choiceList(
       filter.person,
       feed.transactions.map((tx) => tx.person),

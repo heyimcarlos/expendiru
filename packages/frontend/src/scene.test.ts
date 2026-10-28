@@ -1,5 +1,5 @@
 import { householdFixture } from "@expendiru/domain";
-import { Command, click, expect, given, role, scene, text } from "foldkit/scene";
+import { Command, click, expect, given, role, scene, selector, text } from "foldkit/scene";
 import { modifyFields } from "foldkit/struct";
 import { describe, test } from "vitest";
 import { LoadSnapshot } from "./command.ts";
@@ -100,15 +100,58 @@ describe("spending", () => {
       click(role("button", { name: "Bar" })),
       expect(text("By merchant")).toExist(),
       expect(text("By bucket")).toBeAbsent(),
-      expect(role("img", { name: "Spending by merchant" })).toExist(),
+      expect(role("group", { name: "Spending by merchant" })).toExist(),
       expect(text("Stub Grocery", { exact: false })).toExist(),
       click(role("button", { name: "Line" })),
       expect(text("By day")).toExist(),
-      expect(role("img", { name: "Spending by day" })).toExist(),
+      expect(role("group", { name: "Spending by day" })).toExist(),
+      expect(selector('[data-clip="line"]')).toExist(),
       expect(text("Stub Transit", { exact: false })).toExist(),
       click(role("button", { name: "Pie" })),
       expect(text("By bucket")).toExist(),
-      expect(role("img", { name: "Spending by bucket" })).toExist(),
+      expect(role("group", { name: "Spending by bucket" })).toExist(),
+      expect(selector('[data-clip="pie"]')).toExist(),
+    );
+  });
+
+  test("a bucket slice filters the shared transaction list", () => {
+    scene(
+      { update, view },
+      given(initialModel),
+      click(role("button", { name: "Show Household" })),
+      expect(text("1 transaction · $42.10 out")).toExist(),
+      expect(text("Stub Grocery", { exact: false })).toExist(),
+      expect(text("Stub Dinner", { exact: false })).toBeAbsent(),
+      expect(text("Stub Lamp", { exact: false })).toBeAbsent(),
+      expect(role("button", { name: "Show Household" })).toHaveAttr("aria-pressed", "true"),
+      click(role("button", { name: "Clear selection" })),
+      expect(text("6 transactions · $227.90 out")).toExist(),
+      expect(text("Stub Dinner", { exact: false })).toExist(),
+    );
+  });
+
+  test("the legend hides a series from the chart and the list", () => {
+    scene(
+      { update, view },
+      given(initialModel),
+      click(role("button", { name: "Toggle Household" })),
+      expect(text("Stub Grocery", { exact: false })).toBeAbsent(),
+      expect(text("Stub Dinner", { exact: false })).toExist(),
+      expect(role("button", { name: "Show Household" })).toBeAbsent(),
+      expect(text("Stub Rent", { exact: false })).toBeAbsent(),
+    );
+  });
+
+  test("a merchant bar filters the list to that merchant", () => {
+    scene(
+      { update, view },
+      given(initialModel),
+      click(role("button", { name: "Bar" })),
+      expect(selector('[data-clip="bar"]')).toExist(),
+      click(role("button", { name: "Show Stub Lamp" })),
+      expect(text("1 transaction · $80.00 out")).toExist(),
+      expect(text("Carlos · Carlos Scene+ Visa · Move", { exact: false })).toExist(),
+      expect(text("Maria · Maria chequing · Household", { exact: false })).toBeAbsent(),
     );
   });
 });

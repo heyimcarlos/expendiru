@@ -4,48 +4,14 @@ import type { Document, Html, HtmlBuilder } from "foldkit/html";
 import { Message } from "./message.ts";
 import { Model, Refresh } from "./model.ts";
 import {
-  type PaperTone,
   type PresentedBucket,
   type PresentedCard,
   type PresentedHousehold,
   presentHousehold,
 } from "./present.ts";
-import { sketchRectPath } from "./sketch.ts";
 import { spendView } from "./spend-view.ts";
 import * as stylex from "@stylexjs/stylex";
-import { palette, styleAttributes, styles } from "./theme.stylex.ts";
-
-const toneColor = (tone: PaperTone): string => {
-  if (tone === "blue") {
-    return palette.blue;
-  }
-
-  if (tone === "green") {
-    return palette.green;
-  }
-
-  if (tone === "yellow") {
-    return palette.yellow;
-  }
-
-  return palette.orange;
-};
-
-const toneInk = (tone: PaperTone) => {
-  if (tone === "green") {
-    return styles.fillGreenInk;
-  }
-
-  if (tone === "orange") {
-    return styles.fillOrangeInk;
-  }
-
-  if (tone === "yellow") {
-    return styles.fillOrangeInk;
-  }
-
-  return styles.fillBlueInk;
-};
+import { styleAttributes, styles } from "./theme.stylex.ts";
 
 const standingInk = (standing: PaceStanding) => {
   if (standing === "under") {
@@ -53,7 +19,7 @@ const standingInk = (standing: PaceStanding) => {
   }
 
   if (standing === "on") {
-    return styles.fillBlueInk;
+    return styles.fillAccent;
   }
 
   return styles.fillRedInk;
@@ -71,39 +37,12 @@ const standingStyle = (standing: PaceStanding) => {
   return styles.standingOver;
 };
 
-const sketchCard = (
+const card = (
   key: string,
-  seed: number,
-  tone: PaperTone,
-  delayMs: number,
   h: HtmlBuilder<Message>,
   body: ReadonlyArray<Html>,
 ): Html =>
-  h.keyed("div")(
-    key,
-    [...styleAttributes(h, stylex.props(styles.card, styles.rise(delayMs)))],
-    [
-      h.svg(
-        [
-          ...styleAttributes(h, stylex.props(styles.sketch)),
-          h.ViewBox("0 0 300 180"),
-          h.PreserveAspectRatio("none"),
-          h.AriaHidden(true),
-        ],
-        [
-          h.path([
-            h.D(sketchRectPath(seed)),
-            h.Fill(toneColor(tone)),
-            h.Stroke(palette.ink),
-            h.StrokeWidth("1.8"),
-            h.StrokeLinejoin("round"),
-            h.VectorEffect("non-scaling-stroke"),
-          ]),
-        ],
-      ),
-      ...body,
-    ],
-  );
+  h.keyed("div")(key, [...styleAttributes(h, stylex.props(styles.card))], [...body]);
 
 const meter = (
   label: string,
@@ -111,8 +50,7 @@ const meter = (
   max: number,
   widthPercent: number,
   fill: (typeof styles)["fillGreenInk"],
-  replayKey: string,
-  delayMs: number,
+  key: string,
   h: HtmlBuilder<Message>,
 ): Html =>
   h.div(
@@ -126,8 +64,8 @@ const meter = (
     ],
     [
       h.div([
-        h.Key(replayKey),
-        ...styleAttributes(h, stylex.props(styles.fill(widthPercent, delayMs), fill)),
+        h.Key(key),
+        ...styleAttributes(h, stylex.props(styles.fill(widthPercent), fill)),
       ]),
     ],
   );
@@ -136,10 +74,9 @@ const emergencyView = (
   presented: PresentedHousehold,
   savedCents: number,
   targetCents: number,
-  replay: number,
   h: HtmlBuilder<Message>,
 ): Html =>
-  sketchCard(`emergency-${replay}`, 11, "green", 0, h, [
+  card("emergency", h, [
     h.p([...styleAttributes(h, stylex.props(styles.label))], [presented.emergencyName]),
     h.p([...styleAttributes(h, stylex.props(styles.bigNumber))], [presented.savedLabel]),
     h.p(
@@ -152,107 +89,80 @@ const emergencyView = (
       targetCents,
       Math.min(100, Math.max(0, presented.savedPercent)),
       styles.fillGreenInk,
-      `emergency-${replay}`,
-      0,
+      "emergency-meter",
       h,
     ),
     h.p([...styleAttributes(h, stylex.props(styles.caption))], [presented.savedCaption]),
   ]);
 
 const cardView = (
-  card: PresentedCard,
-  index: number,
-  replay: number,
+  cardPresented: PresentedCard,
   h: HtmlBuilder<Message>,
 ): Html =>
-  h.keyed("article")(
-    `${card.id}-${replay}`,
-    [],
-    [
-      sketchCard(`${card.id}-${replay}`, 21 + index, card.tone, 80 + index * 90, h, [
-        h.p([...styleAttributes(h, stylex.props(styles.label))], ["room left"]),
-        h.p([...styleAttributes(h, stylex.props(styles.bigNumber))], [card.roomLabel]),
-        h.p([...styleAttributes(h, stylex.props(styles.detail))], [card.label]),
-        meter(
-          `Room left on ${card.label}`,
-          card.roomPercent,
-          100,
-          card.roomPercent,
-          toneInk(card.tone),
-          `card-${card.id}-${replay}`,
-          80 + index * 70,
-          h,
-        ),
-        h.p([...styleAttributes(h, stylex.props(styles.caption))], [card.detail]),
-      ]),
-    ],
-  );
+  card(cardPresented.id, h, [
+    h.p([...styleAttributes(h, stylex.props(styles.label))], ["room left"]),
+    h.p([...styleAttributes(h, stylex.props(styles.bigNumber))], [cardPresented.roomLabel]),
+    h.p([...styleAttributes(h, stylex.props(styles.detail))], [cardPresented.label]),
+    meter(
+      `Room left on ${cardPresented.label}`,
+      cardPresented.roomPercent,
+      100,
+      cardPresented.roomPercent,
+      styles.fillAccent,
+      `card-${cardPresented.id}`,
+      h,
+    ),
+    h.p([...styleAttributes(h, stylex.props(styles.caption))], [cardPresented.detail]),
+  ]);
 
 const bucketView = (
   bucket: PresentedBucket,
-  index: number,
-  replay: number,
   h: HtmlBuilder<Message>,
 ): Html =>
-  h.keyed("article")(
-    `${bucket.id}-${replay}`,
-    [],
-    [
-      sketchCard(`${bucket.id}-${replay}`, 31 + index, bucket.tone, 260 + index * 80, h, [
-        h.h3([...styleAttributes(h, stylex.props(styles.heading))], [bucket.name]),
-        h.p(
-          [...styleAttributes(h, stylex.props(styles.bigNumber))],
-          [bucket.spentLabel],
-        ),
-        h.p(
-          [...styleAttributes(h, stylex.props(styles.detail))],
-          [`of ${bucket.budgetLabel}`],
-        ),
-        h.div(
-          [
-            h.Role("meter"),
-            h.AriaLabel(`${bucket.name} spent versus budget`),
-            h.AriaValuemin(0),
-            h.AriaValuemax(100),
-            h.AriaValuenow(Math.min(100, Math.max(0, bucket.spentPercent))),
-            ...styleAttributes(h, stylex.props(styles.track)),
-          ],
-          [
-            h.div([
-              h.Key(`bucket-${bucket.id}-${replay}`),
-              ...styleAttributes(
-                h,
-                stylex.props(
-                  styles.fill(
-                    Math.min(100, Math.max(0, bucket.spentPercent)),
-                    160 + index * 70,
-                  ),
-                  standingInk(bucket.standing),
-                ),
-              ),
-            ]),
-            h.div([
-              ...styleAttributes(
-                h,
-                stylex.props(
-                  styles.paceMarkBase,
-                  styles.paceMark(bucket.pacePercent),
-                ),
-              ),
-            ]),
-          ],
-        ),
-        h.p(
-          [...styleAttributes(h, stylex.props(standingStyle(bucket.standing)))],
-          [bucket.standingLabel],
-        ),
-        h.p(
-          [...styleAttributes(h, stylex.props(styles.caption))],
-          [`pace ${bucket.paceLabel}`],
-        ),
-      ]),
-    ],
-  );
+  card(bucket.id, h, [
+    h.h3([...styleAttributes(h, stylex.props(styles.heading))], [bucket.name]),
+    h.p([...styleAttributes(h, stylex.props(styles.bigNumber))], [bucket.spentLabel]),
+    h.p(
+      [...styleAttributes(h, stylex.props(styles.detail))],
+      [`of ${bucket.budgetLabel}`],
+    ),
+    h.div(
+      [
+        h.Role("meter"),
+        h.AriaLabel(`${bucket.name} spent versus budget`),
+        h.AriaValuemin(0),
+        h.AriaValuemax(100),
+        h.AriaValuenow(Math.min(100, Math.max(0, bucket.spentPercent))),
+        ...styleAttributes(h, stylex.props(styles.track)),
+      ],
+      [
+        h.div([
+          h.Key(`bucket-${bucket.id}`),
+          ...styleAttributes(
+            h,
+            stylex.props(
+              styles.fill(Math.min(100, Math.max(0, bucket.spentPercent))),
+              standingInk(bucket.standing),
+            ),
+          ),
+        ]),
+        h.div([
+          ...styleAttributes(
+            h,
+            stylex.props(styles.paceMarkBase, styles.paceMark(bucket.pacePercent)),
+          ),
+        ]),
+      ],
+    ),
+    h.p(
+      [...styleAttributes(h, stylex.props(standingStyle(bucket.standing)))],
+      [bucket.standingLabel],
+    ),
+    h.p(
+      [...styleAttributes(h, stylex.props(styles.caption))],
+      [`pace ${bucket.paceLabel}`],
+    ),
+  ]);
 
 const replayButton = (h: HtmlBuilder<Message>): Html =>
   Button.view(
@@ -294,10 +204,8 @@ const noticeView = (refresh: Refresh, h: HtmlBuilder<Message>): Html =>
     Failed: ({ error }) =>
       h.div([...styleAttributes(h, stylex.props(styles.notice))], [
         h.p(
-          [...styleAttributes(h, stylex.props(styles.detail))],
-          [
-            `Couldn't refresh from the household API. Showing the fixture. ${error}`,
-          ],
+          [...styleAttributes(h, stylex.props(styles.noticeText))],
+          [`Couldn't refresh from the household API. Showing the fixture. ${error}`],
         ),
         retryButton(h),
       ]),
@@ -323,13 +231,7 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
           [...styleAttributes(h, stylex.props(styles.lede))],
           ["Cash set aside before anything else gets spent."],
         ),
-        emergencyView(
-          presented,
-          fund.saved.cents,
-          fund.target.cents,
-          model.replay,
-          h,
-        ),
+        emergencyView(presented, fund.saved.cents, fund.target.cents, h),
       ]),
       h.section([...styleAttributes(h, stylex.props(styles.shell))], [
         h.h2(
@@ -342,9 +244,7 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
         ),
         h.div(
           [...styleAttributes(h, stylex.props(styles.gridTwo))],
-          presented.cards.map((card, index) =>
-            cardView(card, index, model.replay, h),
-          ),
+          presented.cards.map((item) => cardView(item, h)),
         ),
       ]),
       h.section([...styleAttributes(h, stylex.props(styles.shell))], [
@@ -352,9 +252,7 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
         h.p([...styleAttributes(h, stylex.props(styles.lede))], [presented.paceCaption]),
         h.div(
           [...styleAttributes(h, stylex.props(styles.gridBuckets))],
-          presented.buckets.map((bucket, index) =>
-            bucketView(bucket, index, model.replay, h),
-          ),
+          presented.buckets.map((bucket) => bucketView(bucket, h)),
         ),
       ]),
       spendView(model, h),

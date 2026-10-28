@@ -17,6 +17,26 @@ export const Refresh = defineTaggedUnion({
 
 export type Refresh = typeof Refresh.Type;
 
+export const SpendMark = defineTaggedUnion({
+  Idle: {},
+  Bucket: { key: Schema.String },
+  Merchant: { key: Schema.String },
+  Day: { key: Schema.String },
+});
+
+export type SpendMark = typeof SpendMark.Type;
+
+export const spendMarkId = (mark: SpendMark): string =>
+  SpendMark.match(mark, {
+    Idle: () => "",
+    Bucket: ({ key }) => `bucket:${key}`,
+    Merchant: ({ key }) => `merchant:${key}`,
+    Day: ({ key }) => `day:${key}`,
+  });
+
+export const sameSpendMark = (left: SpendMark, right: SpendMark): boolean =>
+  spendMarkId(left) === spendMarkId(right);
+
 export const Model = Schema.Struct({
   snapshot: HouseholdSnapshot,
   refresh: Refresh,
@@ -25,6 +45,9 @@ export const Model = Schema.Struct({
   spendRefresh: Refresh,
   spendChart: ChartMode,
   spendFilter: SpendFilter,
+  spendFocus: SpendMark,
+  spendHover: SpendMark,
+  spendHidden: Schema.Array(Schema.String),
 });
 
 export type Model = typeof Model.Type;
@@ -37,4 +60,7 @@ export const initialModel = Model.make({
   spendRefresh: Refresh.Idle(),
   spendChart: "pie",
   spendFilter: defaultSpendFilter(spendStub.period.from, spendStub.period.to),
+  spendFocus: SpendMark.Idle(),
+  spendHover: SpendMark.Idle(),
+  spendHidden: [],
 });
