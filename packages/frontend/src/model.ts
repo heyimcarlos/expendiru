@@ -59,7 +59,7 @@ export const initialModel = Model.make({
   replay: 0,
   spend: spendStub,
   spendRefresh: Refresh.Idle(),
-  spendChart: "pie",
+  spendChart: "line",
   spendFilter: defaultSpendFilter(spendStub.period.from, spendStub.period.to),
   spendFocus: SpendMark.Idle(),
   spendHover: SpendMark.Idle(),

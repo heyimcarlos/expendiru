@@ -4,10 +4,10 @@ import * as stylex from "@stylexjs/stylex";
 export const palette = {
   ink: "#18181b",
   muted: "#71717a",
-  paper: "#f4f4f5",
-  surface: "#ffffff",
-  line: "#e4e4e7",
-  track: "#ececee",
+  paper: "#f6f4f0",
+  surface: "#fbfaf7",
+  line: "#e4dfd6",
+  track: "#ece8e1",
   accent: "#5e6ad2",
   green: "#18794e",
   red: "#d1242f",
@@ -15,20 +15,28 @@ export const palette = {
 } as const;
 
 export const seriesPalette = [
-  "#5e6ad2",
-  "#2f2f33",
-  "#8b909a",
-  "#b7b9c2",
-  "#3d4d73",
+  "#8a847a",
+  "#6f6a63",
+  "#6d5b78",
+  "#5a4a66",
+  "#b3aa9e",
+] as const;
+
+export const areaFills = [
+  "#e7e2d8",
+  "#ddd6cc",
+  "#e6dceb",
+  "#ddd0e4",
+  "#efece6",
 ] as const;
 
 export const tokens = stylex.defineVars({
   ink: "#18181b",
   muted: "#71717a",
-  paper: "#f4f4f5",
-  surface: "#ffffff",
-  line: "#e4e4e7",
-  track: "#ececee",
+  paper: "#f6f4f0",
+  surface: "#fbfaf7",
+  line: "#e4dfd6",
+  track: "#ece8e1",
   accent: "#5e6ad2",
   accentInk: "#ffffff",
   green: "#18794e",
@@ -361,7 +369,7 @@ export const styles = stylex.create({
     paddingRight: "24px",
     paddingBottom: "20px",
     paddingLeft: "24px",
-    backgroundColor: tokens.surface,
+    backgroundColor: tokens.paper,
     borderWidth: "1px",
     borderStyle: "solid",
     borderColor: tokens.line,
@@ -375,6 +383,9 @@ export const styles = stylex.create({
     },
   },
   chartStageSolo: {
+    gridTemplateColumns: "minmax(0, 1fr)",
+  },
+  chartStagePlot: {
     gridTemplateColumns: "minmax(0, 1fr)",
   },
   chartPlot: {
@@ -416,7 +427,7 @@ export const styles = stylex.create({
   chartLine: {
     width: "100%",
     height: "auto",
-    aspectRatio: "400 / 260",
+    aspectRatio: "520 / 230",
     maxHeight: "min(calc(100vh - 320px), 800px)",
     display: "block",
     overflow: "visible",

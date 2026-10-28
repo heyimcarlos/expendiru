@@ -78,7 +78,7 @@ describe("presentSpend", () => {
     expect(presented.stack.width).toBe(stackChartWidth);
     expect(presented.stack.height).toBe(stackChartHeight);
     expect(presented.stack.months.map((month) => month.label)).toEqual([
-      "Jul",
+      "Jul '26",
       "Aug",
       "Sep",
       "Oct",
@@ -99,8 +99,9 @@ describe("presentSpend", () => {
       385_143, 238_739, 1_144_448, 598_499,
     ]);
     expect(presented.stack.bands.every((band) => band.path.endsWith("Z"))).toBe(true);
-    expect(presented.stack.months[0]?.x).toBe(12);
-    expect(presented.stack.months.at(-1)?.x).toBe(stackChartWidth - 128);
+    expect(presented.stack.bands.every((band) => band.line.includes("C"))).toBe(true);
+    expect(presented.stack.months[0]?.x).toBe(4);
+    expect(presented.stack.months.at(-1)?.x).toBe(stackChartWidth - 136);
 
     const drawn = stackChart(presented.stack.months.map(() => ({
       month: "2026-10",
@@ -145,12 +146,12 @@ describe("presentSpend", () => {
     expect(palette.red).toBe("#d1242f");
     expect(palette.green).toBe("#18794e");
     expect(palette.red).not.toBe("#ffc9c9");
-    expect(seriesColor(4)).toBe("#3d4d73");
+    expect(seriesColor(4)).toBe("#b3aa9e");
 
     const rings = pieRings(bucketSlices(rows));
     const move = rings.find((ring) => ring.key === "move_oneoffs");
 
-    expect(move?.color).toBe("#3d4d73");
+    expect(move?.color).toBe("#b3aa9e");
   });
 });
 

@@ -10,7 +10,8 @@ Line mode draws a monthly stacked area for Household, Together, Carlos, and Mari
 
 ## How to get to it (user POV)
 
-- In the spend toolbar, press `Line`.
+- Open the fixture site. Line is the chart already showing.
+- Press `Line` again if you came from Pie or Bar.
 
 ## Driving it with verify-expendiru
 

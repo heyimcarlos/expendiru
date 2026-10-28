@@ -10,8 +10,8 @@ Choosing a pie slice filters the transaction table to that bucket and does not s
 
 ## How to get to it (user POV)
 
-- Open the fixture site. The spend section starts on Pie.
-- Press the `Pie` chart-mode button if another mode is showing.
+- Open the fixture site. The spend section starts on Line.
+- Press the `Pie` chart-mode button.
 
 ## Driving it with verify-expendiru
 

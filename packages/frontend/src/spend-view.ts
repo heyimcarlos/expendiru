@@ -385,7 +385,7 @@ const lineChart = (
     );
   }
 
-  return h.div([...styleAttributes(h, stylex.props(styles.chartStage))], [
+  return h.div([...styleAttributes(h, stylex.props(styles.chartStage, styles.chartStagePlot))], [
     h.div([...styleAttributes(h, stylex.props(styles.chartPlot))], [
     h.svg(
       [
@@ -406,8 +406,7 @@ const lineChart = (
                 band.key,
                 [
                   h.D(band.path),
-                  h.Fill(band.color),
-                  h.FillOpacity("0.88"),
+                  h.Fill(band.fill),
                   h.Role("button"),
                   h.Tabindex(0),
                   h.AriaLabel(`Show ${band.label}`),
@@ -427,10 +426,31 @@ const lineChart = (
               );
             }),
             ...stack.bands.map((band) =>
+              h.keyed("path")(`line-${band.key}`, [
+                h.D(band.line),
+                h.Fill("none"),
+                h.Stroke(band.stroke),
+                h.StrokeWidth("1.5"),
+                h.StrokeLinejoin("round"),
+                h.StrokeLinecap("round"),
+                h.VectorEffect("non-scaling-stroke"),
+                h.PointerEvents("none"),
+              ]),
+            ),
+            ...stack.bands.map((band) =>
+              h.keyed("circle")(`dot-${band.key}`, [
+                h.Cx(String(band.dotX)),
+                h.Cy(String(band.dotY)),
+                h.R("3.5"),
+                h.Fill(band.stroke),
+                h.PointerEvents("none"),
+              ]),
+            ),
+            ...stack.bands.map((band) =>
               h.keyed("text")(`callout-${band.key}`, [
                 h.X(String(band.calloutX)),
                 h.Y(String(band.calloutY)),
-                h.Fill(palette.ink),
+                h.Fill(band.stroke),
                 h.FontSize("13"),
                 h.FontWeight("500"),
                 h.TextAnchor("start"),
@@ -464,9 +484,6 @@ const lineChart = (
       focus,
       h,
     ),
-    stack.caption === ""
-      ? h.empty
-      : h.p([...styleAttributes(h, stylex.props(styles.caption))], [stack.caption]),
   ]);
 };
 

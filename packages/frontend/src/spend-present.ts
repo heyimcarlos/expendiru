@@ -18,7 +18,7 @@ import {
   totalOutflowCents,
 } from "@expendiru/domain";
 import { SpendMark } from "./model.ts";
-import { seriesPalette } from "./theme.stylex.ts";
+import { areaFills, seriesPalette } from "./theme.stylex.ts";
 
 export type SpendChoice = {
   readonly value: string;
@@ -49,10 +49,15 @@ export type StackBand = {
   readonly key: string;
   readonly label: string;
   readonly color: string;
+  readonly fill: string;
+  readonly stroke: string;
   readonly cents: number;
   readonly amountLabel: string;
   readonly shareLabel: string;
   readonly path: string;
+  readonly line: string;
+  readonly dotX: number;
+  readonly dotY: number;
   readonly callout: string;
   readonly calloutX: number;
   readonly calloutY: number;
@@ -109,17 +114,17 @@ export const pieRadius = 78;
 
 export const pieCircumference = 2 * Math.PI * pieRadius;
 
-export const stackChartWidth = 400;
+export const stackChartWidth = 520;
 
-export const stackChartHeight = 260;
+export const stackChartHeight = 230;
 
-const stackPadLeft = 12;
+const stackPadLeft = 4;
 
-const stackPadRight = 128;
+const stackPadRight = 136;
 
-const stackPadTop = 16;
+const stackPadTop = 18;
 
-const stackPadBottom = 32;
+const stackPadBottom = 28;
 
 const pieCenter = 120;
 
@@ -159,6 +164,40 @@ const bucketColor = (bucket: string, index: number): string => {
   }
 
   return seriesColor(index);
+};
+
+const areaFill = (index: number): string => {
+  const color = areaFills[index % areaFills.length];
+
+  if (color !== undefined) {
+    return color;
+  }
+
+  return "#efece6";
+};
+
+const bucketFill = (bucket: string, index: number): string => {
+  if (bucket === "household") {
+    return areaFill(0);
+  }
+
+  if (bucket === "together") {
+    return areaFill(1);
+  }
+
+  if (bucket === "carlos_personal") {
+    return areaFill(2);
+  }
+
+  if (bucket === "maria_personal") {
+    return areaFill(3);
+  }
+
+  if (bucket === "move_oneoffs") {
+    return areaFill(4);
+  }
+
+  return areaFill(index);
 };
 
 const coord = (value: number): string => {
@@ -314,11 +353,16 @@ const monthNames = [
   "Dec",
 ];
 
-const monthLabel = (month: string): string => {
+const monthLabel = (month: string, first: boolean): string => {
   const index = Number(month.slice(5, 7)) - 1;
   const name = monthNames[index];
+  const short = name === undefined ? month : name;
 
-  return name === undefined ? month : name;
+  if (!first) {
+    return short;
+  }
+
+  return `${short} '${month.slice(2, 4)}`;
 };
 
 const stackPlotWidth = stackChartWidth - stackPadLeft - stackPadRight;
@@ -370,13 +414,97 @@ const stackLayers = [
   { key: "maria_personal", label: "Maria" },
 ] as const;
 
+type CurvePoint = {
+  readonly x: number;
+  readonly y: number;
+};
+
+const smoothLine = (points: ReadonlyArray<CurvePoint>): string => {
+  const first = points[0];
+
+  if (first === undefined) {
+    return "";
+  }
+
+  if (points.length === 1) {
+    return `M ${coord(first.x)} ${coord(first.y)}`;
+  }
+
+  const slopes: Array<number> = [];
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const left = points[index];
+    const right = points[index + 1];
+    const run = (right?.x ?? 0) - (left?.x ?? 0);
+    const rise = (right?.y ?? 0) - (left?.y ?? 0);
+    slopes.push(run === 0 ? 0 : rise / run);
+  }
+
+  const tangents = slopes.map((slope, index) => {
+    if (index === 0) {
+      return slope;
+    }
+
+    const previous = slopes[index - 1] ?? 0;
+
+    if (previous * slope <= 0) {
+      return 0;
+    }
+
+    return (previous + slope) / 2;
+  });
+
+  const lastSlope = slopes.at(-1) ?? 0;
+  tangents.push(lastSlope);
+
+  for (let index = 0; index < slopes.length; index += 1) {
+    const slope = slopes[index] ?? 0;
+
+    if (slope === 0) {
+      tangents[index] = 0;
+      tangents[index + 1] = 0;
+      continue;
+    }
+
+    const start = (tangents[index] ?? 0) / slope;
+    const end = (tangents[index + 1] ?? 0) / slope;
+    const scale = Math.hypot(start, end);
+
+    if (scale > 3) {
+      const tau = 3 / scale;
+      tangents[index] = tau * start * slope;
+      tangents[index + 1] = tau * end * slope;
+    }
+  }
+
+  const commands = [`M ${coord(first.x)} ${coord(first.y)}`];
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const left = points[index];
+    const right = points[index + 1];
+
+    if (left === undefined || right === undefined) {
+      continue;
+    }
+
+    const run = right.x - left.x;
+    const start = tangents[index] ?? 0;
+    const end = tangents[index + 1] ?? 0;
+    commands.push(
+      `C ${coord(left.x + run / 3)} ${coord(left.y + (start * run) / 3)} ${coord(right.x - run / 3)} ${coord(right.y - (end * run) / 3)} ${coord(right.x)} ${coord(right.y)}`,
+    );
+  }
+
+  return commands.join(" ");
+};
+
 const separateCallouts = (ys: ReadonlyArray<number>): Array<number> => {
   const order = ys
     .map((y, index) => ({ y, index }))
     .sort((left, right) => left.y - right.y);
 
   const placed = order.map((item) => item.y);
-  const minGap = 16;
+  const minGap = 22;
   let index = 1;
 
   while (index < placed.length) {
@@ -427,7 +555,7 @@ export const stackChart = (rows: ReadonlyArray<MonthlyBucketSpend>): StackChart 
   for (const row of rows) {
     months.push({
       key: row.month,
-      label: monthLabel(row.month),
+      label: monthLabel(row.month, index === 0),
       x: stackX(index, rows.length),
     });
     index += 1;
@@ -493,50 +621,41 @@ export const stackChart = (rows: ReadonlyArray<MonthlyBucketSpend>): StackChart 
       return next;
     });
 
-    const lastRow = rows.at(-1);
-    const lastTop = top.at(-1) ?? 0;
+    const ceiling: Array<CurvePoint> = [];
+    const floorLine: Array<CurvePoint> = [];
 
-    const lastFloor =
-      lastRow === undefined ? lastTop : lastTop - bucketCents(lastRow, layer.key);
-
-    const commands: Array<string> = [];
-    let point = 0;
-
-    for (const value of top) {
-      const x = months[point]?.x ?? stackPadLeft;
-      const y = stackY(value, maxCents);
-      const command = point === 0 ? "M" : "L";
-      commands.push(`${command} ${x} ${y}`);
-      point += 1;
-    }
-
-    point = rows.length - 1;
-
-    while (point >= 0) {
+    for (let point = 0; point < top.length; point += 1) {
       const row = rows[point];
       const added = row === undefined ? 0 : bucketCents(row, layer.key);
-      const floor = (top[point] ?? 0) - added;
       const x = months[point]?.x ?? stackPadLeft;
-      commands.push(`L ${x} ${stackY(floor, maxCents)}`);
-      point -= 1;
+      ceiling.push({ x, y: stackY(top[point] ?? 0, maxCents) });
+      floorLine.push({ x, y: stackY((top[point] ?? 0) - added, maxCents) });
     }
 
-    commands.push("Z");
-    const lastX = months.at(-1)?.x ?? stackPadLeft;
-    const mid = (lastFloor + lastTop) / 2;
+    const ceilingPath = smoothLine(ceiling);
+    const floorPath = smoothLine([...floorLine].reverse()).replace(/^M/, "L");
+    const end = ceiling.at(-1);
+    const dotX = end?.x ?? stackPadLeft;
+    const dotY = end?.y ?? stackBaseline;
+    const stroke = bucketColor(layer.key, bands.length);
 
-    calloutYs.push({ y: stackY(mid, maxCents) });
+    calloutYs.push({ y: dotY });
     bands.push({
       key: layer.key,
       label: layer.label,
-      color: bucketColor(layer.key, bands.length),
+      color: stroke,
+      fill: bucketFill(layer.key, bands.length),
+      stroke,
       cents,
       amountLabel: formatCad(cents),
       shareLabel,
-      path: commands.join(" "),
+      path: `${ceilingPath} ${floorPath} Z`,
+      line: ceilingPath,
+      dotX,
+      dotY,
       callout: `${layer.label} ${shareLabel}`,
-      calloutX: lastX + 10,
-      calloutY: stackY(mid, maxCents),
+      calloutX: dotX + 14,
+      calloutY: dotY,
     });
   }
 

@@ -225,6 +225,8 @@ const drivePieSelect = async () => {
       return path;
     };
 
+    await evaluate(`[...document.querySelectorAll("button")].find((button) => button.textContent.trim() === "Pie")?.click()`);
+    await sleep(200);
     await evaluate(`document.querySelector("[data-chart-surface='pie']")?.scrollIntoView({ block: "center" })`);
     await sleep(100);
     const beforeScroll = await evaluate("window.scrollY");
