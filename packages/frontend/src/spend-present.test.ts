@@ -42,6 +42,8 @@ describe("presentSpend", () => {
     expect(presented.rows.map((row) => row.title)).not.toContain("Stub Rent");
     expect(presented.rows[0]?.category).toContain("Transportation");
     expect(presented.rows[0]?.category).toContain("public transit");
+    expect(presented.rows[0]?.bucket).toBe("Carlos");
+    expect(presented.rows[0]?.detail).toBe("Carlos · Carlos Scene+ Visa");
     expect(presented.rows[0]?.pending).toBe(true);
     expect(presented.amountError).toBe(false);
   });

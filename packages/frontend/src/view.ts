@@ -225,6 +225,7 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
         h.div([...styleAttributes(h, stylex.props(styles.nav))], [replayButton(h)]),
         noticeView(model.refresh, h),
       ]),
+      spendView(model, h),
       h.section([...styleAttributes(h, stylex.props(styles.shell))], [
         h.h2([...styleAttributes(h, stylex.props(styles.heading))], ["Emergency fund"]),
         h.p(
@@ -255,7 +256,6 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
           presented.buckets.map((bucket) => bucketView(bucket, h)),
         ),
       ]),
-      spendView(model, h),
       h.p(
         [...styleAttributes(h, stylex.props(styles.footer))],
         [footerCopy(model.snapshot.source)],
