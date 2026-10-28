@@ -1,11 +1,16 @@
-import type { HouseholdSnapshot } from "@expendiru/domain";
+import {
+  type HouseholdSnapshot,
+  type SpendFeed,
+  defaultSpendFilter,
+  sameSpendFilter,
+} from "@expendiru/domain";
 import { Runtime, type Update } from "foldkit";
 import { modifyFields } from "foldkit/struct";
-import { LoadSnapshot } from "./command.ts";
+import { LoadSnapshot, LoadSpend } from "./command.ts";
 import { Message } from "./message.ts";
 import { Model, Refresh, initialModel } from "./model.ts";
 
-export { LoadSnapshot } from "./command.ts";
+export { LoadSnapshot, LoadSpend } from "./command.ts";
 
 export { Message } from "./message.ts";
 
@@ -34,7 +39,49 @@ export const update = (model: Model, message: Message) =>
       model,
       commands: [LoadSnapshot()],
     }),
+    LoadedSpend: ({ feed }) => ({
+      model: replaceSpend(model, feed),
+    }),
+    FailedLoadSpend: ({ error }) => ({
+      model: modifyFields(model, {
+        spendRefresh: () => Refresh.Failed({ error }),
+      }),
+    }),
+    ClickedChart: ({ mode }) => ({
+      model: modifyFields(model, {
+        spendChart: () => mode,
+      }),
+    }),
+    ChangedSpendFilter: ({ filter }) => ({
+      model: modifyFields(model, {
+        spendFilter: () => filter,
+      }),
+    }),
+    ClickedResetSpend: () => ({
+      model: modifyFields(model, {
+        spendFilter: () => defaultSpendFilter(model.spend.period.from, model.spend.period.to),
+      }),
+    }),
+    ClickedRetrySpend: () => ({
+      model,
+      commands: [LoadSpend()],
+    }),
   });
+
+const replaceSpend = (model: Model, feed: SpendFeed): Model => {
+  const nextFilter = sameSpendFilter(
+    model.spendFilter,
+    defaultSpendFilter(model.spend.period.from, model.spend.period.to),
+  )
+    ? defaultSpendFilter(feed.period.from, feed.period.to)
+    : model.spendFilter;
+
+  return modifyFields(model, {
+    spend: () => feed,
+    spendRefresh: () => Refresh.Idle(),
+    spendFilter: () => nextFilter,
+  });
+};
 
 const replaceSnapshot = (
   model: Model,
@@ -47,5 +94,5 @@ const replaceSnapshot = (
 
 export const init: Runtime.ApplicationInit<Model, Message> = () => ({
   model: initialModel,
-  commands: [LoadSnapshot()],
+  commands: [LoadSnapshot(), LoadSpend()],
 });

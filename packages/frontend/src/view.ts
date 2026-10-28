@@ -11,6 +11,7 @@ import {
   presentHousehold,
 } from "./present.ts";
 import { sketchRectPath } from "./sketch.ts";
+import { spendView } from "./spend-view.ts";
 import * as stylex from "@stylexjs/stylex";
 import { palette, styleAttributes, styles } from "./theme.stylex.ts";
 
@@ -30,32 +31,32 @@ const toneColor = (tone: PaperTone): string => {
   return palette.orange;
 };
 
-const toneFill = (tone: PaperTone) => {
-  if (tone === "blue") {
-    return styles.fillBlue;
+const toneInk = (tone: PaperTone) => {
+  if (tone === "green") {
+    return styles.fillGreenInk;
   }
 
-  if (tone === "green") {
-    return styles.fillGreen;
+  if (tone === "orange") {
+    return styles.fillOrangeInk;
   }
 
   if (tone === "yellow") {
-    return styles.fillYellow;
+    return styles.fillOrangeInk;
   }
 
-  return styles.fillOrange;
+  return styles.fillBlueInk;
 };
 
-const standingFill = (standing: PaceStanding) => {
+const standingInk = (standing: PaceStanding) => {
   if (standing === "under") {
-    return styles.fillGreen;
+    return styles.fillGreenInk;
   }
 
   if (standing === "on") {
-    return styles.fillBlue;
+    return styles.fillBlueInk;
   }
 
-  return styles.fillRed;
+  return styles.fillRedInk;
 };
 
 const standingStyle = (standing: PaceStanding) => {
@@ -71,13 +72,16 @@ const standingStyle = (standing: PaceStanding) => {
 };
 
 const sketchCard = (
+  key: string,
   seed: number,
   tone: PaperTone,
+  delayMs: number,
   h: HtmlBuilder<Message>,
   body: ReadonlyArray<Html>,
 ): Html =>
-  h.div(
-    [...styleAttributes(h, stylex.props(styles.card))],
+  h.keyed("div")(
+    key,
+    [...styleAttributes(h, stylex.props(styles.card, styles.rise(delayMs)))],
     [
       h.svg(
         [
@@ -106,7 +110,7 @@ const meter = (
   now: number,
   max: number,
   widthPercent: number,
-  fill: (typeof styles)["fillGreen"],
+  fill: (typeof styles)["fillGreenInk"],
   replayKey: string,
   delayMs: number,
   h: HtmlBuilder<Message>,
@@ -135,7 +139,7 @@ const emergencyView = (
   replay: number,
   h: HtmlBuilder<Message>,
 ): Html =>
-  sketchCard(11, "green", h, [
+  sketchCard(`emergency-${replay}`, 11, "green", 0, h, [
     h.p([...styleAttributes(h, stylex.props(styles.label))], [presented.emergencyName]),
     h.p([...styleAttributes(h, stylex.props(styles.bigNumber))], [presented.savedLabel]),
     h.p(
@@ -147,7 +151,7 @@ const emergencyView = (
       savedCents,
       targetCents,
       Math.min(100, Math.max(0, presented.savedPercent)),
-      styles.fillGreen,
+      styles.fillGreenInk,
       `emergency-${replay}`,
       0,
       h,
@@ -162,10 +166,10 @@ const cardView = (
   h: HtmlBuilder<Message>,
 ): Html =>
   h.keyed("article")(
-    card.id,
+    `${card.id}-${replay}`,
     [],
     [
-      sketchCard(21 + index, card.tone, h, [
+      sketchCard(`${card.id}-${replay}`, 21 + index, card.tone, 80 + index * 90, h, [
         h.p([...styleAttributes(h, stylex.props(styles.label))], ["room left"]),
         h.p([...styleAttributes(h, stylex.props(styles.bigNumber))], [card.roomLabel]),
         h.p([...styleAttributes(h, stylex.props(styles.detail))], [card.label]),
@@ -174,7 +178,7 @@ const cardView = (
           card.roomPercent,
           100,
           card.roomPercent,
-          toneFill(card.tone),
+          toneInk(card.tone),
           `card-${card.id}-${replay}`,
           80 + index * 70,
           h,
@@ -191,10 +195,10 @@ const bucketView = (
   h: HtmlBuilder<Message>,
 ): Html =>
   h.keyed("article")(
-    bucket.id,
+    `${bucket.id}-${replay}`,
     [],
     [
-      sketchCard(31 + index, bucket.tone, h, [
+      sketchCard(`${bucket.id}-${replay}`, 31 + index, bucket.tone, 260 + index * 80, h, [
         h.h3([...styleAttributes(h, stylex.props(styles.heading))], [bucket.name]),
         h.p(
           [...styleAttributes(h, stylex.props(styles.bigNumber))],
@@ -223,7 +227,7 @@ const bucketView = (
                     Math.min(100, Math.max(0, bucket.spentPercent)),
                     160 + index * 70,
                   ),
-                  standingFill(bucket.standing),
+                  standingInk(bucket.standing),
                 ),
               ),
             ]),
@@ -353,6 +357,7 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
           ),
         ),
       ]),
+      spendView(model, h),
       h.p(
         [...styleAttributes(h, stylex.props(styles.footer))],
         [footerCopy(model.snapshot.source)],

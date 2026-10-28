@@ -8,11 +8,13 @@ import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { HttpApiBuilder } from "effect/http-api";
 import { householdAllowPolicy } from "./access.ts";
 import { HouseholdLive } from "./household.ts";
+import { SpendSource } from "./spend-source.ts";
 import { HouseholdSource } from "./source.ts";
 
 const apiLayer = HttpApiBuilder.layer(Api).pipe(
   Layer.provide(HouseholdLive),
   Layer.provide(HouseholdSource.liveLayer),
+  Layer.provide(SpendSource.layer),
   Layer.provide(Http.Platform),
   Layer.provide(
     HttpRouter.cors({

@@ -50,6 +50,21 @@ const grow = stylex.keyframes({
   to: { transform: "scaleX(1)" },
 });
 
+const riseIn = stylex.keyframes({
+  from: { opacity: 0, transform: "translateY(16px)" },
+  to: { opacity: 1, transform: "translateY(0)" },
+});
+
+const inkArc = stylex.keyframes({
+  from: { strokeDashoffset: "var(--arc-from)" },
+  to: { strokeDashoffset: "var(--arc-to)" },
+});
+
+const inkSweep = stylex.keyframes({
+  from: { clipPath: "inset(0 100% 0 0)" },
+  to: { clipPath: "inset(0 0 0 0)" },
+});
+
 export const styles = stylex.create({
   page: {
     minHeight: "100vh",
@@ -200,10 +215,14 @@ export const styles = stylex.create({
   track: {
     position: "relative",
     marginTop: "14px",
-    height: "22px",
-    backgroundColor: tokens.gray,
+    height: "28px",
+    backgroundColor: tokens.paper,
+    borderWidth: "2px",
+    borderStyle: "solid",
+    borderColor: tokens.ink,
     borderRadius: "8px",
     overflow: "hidden",
+    boxSizing: "border-box",
   },
   fill: (widthPercent: number, delayMs: number) => ({
     position: "absolute",
@@ -211,6 +230,7 @@ export const styles = stylex.create({
     left: 0,
     bottom: 0,
     width: `${widthPercent}%`,
+    minWidth: widthPercent > 0 ? "8px" : "0px",
     transformOrigin: "left center",
     animationName: {
       default: grow,
@@ -221,11 +241,10 @@ export const styles = stylex.create({
     animationDelay: `${delayMs}ms`,
     animationFillMode: "both",
   }),
-  fillGreen: { backgroundColor: tokens.green },
-  fillRed: { backgroundColor: tokens.red },
-  fillBlue: { backgroundColor: tokens.blue },
-  fillOrange: { backgroundColor: tokens.orange },
-  fillYellow: { backgroundColor: tokens.yellow },
+  fillGreenInk: { backgroundColor: tokens.greenInk },
+  fillRedInk: { backgroundColor: tokens.redInk },
+  fillBlueInk: { backgroundColor: tokens.blueInk },
+  fillOrangeInk: { backgroundColor: tokens.orangeInk },
   paceMark: (leftPercent: number) => ({
     left: `${leftPercent}%`,
   }),
@@ -236,6 +255,7 @@ export const styles = stylex.create({
     width: "2px",
     backgroundColor: tokens.ink,
     transform: "translateX(-1px)",
+    zIndex: 1,
   },
   footer: {
     margin: 0,
@@ -259,6 +279,216 @@ export const styles = stylex.create({
     borderColor: tokens.ink,
     borderRadius: tokens.radiusCard,
     color: tokens.ink,
+  },
+  buttonOn: {
+    backgroundColor: tokens.blue,
+  },
+  rise: (delayMs: number) => ({
+    animationName: {
+      default: riseIn,
+      "@media (prefers-reduced-motion: reduce)": "none",
+    },
+    animationDuration: "420ms",
+    animationTimingFunction: "ease-out",
+    animationDelay: `${delayMs}ms`,
+    animationFillMode: "both",
+  }),
+  pieDraw: (fromOffset: number, toOffset: number, delayMs: number) => ({
+    "--arc-from": fromOffset,
+    "--arc-to": toOffset,
+    animationName: {
+      default: inkArc,
+      "@media (prefers-reduced-motion: reduce)": "none",
+    },
+    animationDuration: "700ms",
+    animationTimingFunction: "ease-out",
+    animationDelay: `${delayMs}ms`,
+    animationFillMode: "both",
+  }),
+  lineDraw: {
+    animationName: {
+      default: inkSweep,
+      "@media (prefers-reduced-motion: reduce)": "none",
+    },
+    animationDuration: "1400ms",
+    animationTimingFunction: "ease-out",
+    animationFillMode: "both",
+  },
+  filters: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: "12px",
+    marginTop: "18px",
+  },
+  field: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+  },
+  fieldLabel: {
+    color: tokens.muted,
+    fontSize: "14px",
+  },
+  control: {
+    fontFamily: tokens.fontBody,
+    fontSize: "15px",
+    color: tokens.ink,
+    backgroundColor: tokens.paper,
+    borderWidth: "2px",
+    borderStyle: "solid",
+    borderColor: tokens.ink,
+    borderRadius: "8px",
+    paddingTop: "6px",
+    paddingRight: "8px",
+    paddingBottom: "6px",
+    paddingLeft: "8px",
+  },
+  chartFrame: {
+    marginTop: "16px",
+    paddingTop: "12px",
+    paddingRight: "12px",
+    paddingBottom: "12px",
+    paddingLeft: "12px",
+    backgroundColor: tokens.paper,
+    borderWidth: "2px",
+    borderStyle: "solid",
+    borderColor: tokens.ink,
+    borderRadius: tokens.radiusCard,
+  },
+  chartRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "18px",
+    alignItems: "center",
+    marginTop: "16px",
+  },
+  chartPie: {
+    width: "240px",
+    height: "240px",
+    display: "block",
+  },
+  chartLine: {
+    width: "100%",
+    height: "auto",
+    display: "block",
+  },
+  legend: {
+    margin: 0,
+    padding: 0,
+    listStyle: "none",
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+  },
+  legendItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+  },
+  swatch: (color: string) => ({
+    display: "inline-block",
+    width: "16px",
+    height: "16px",
+    borderWidth: "2px",
+    borderStyle: "solid",
+    borderColor: tokens.ink,
+    borderRadius: "4px",
+    backgroundColor: color,
+    flexShrink: 0,
+  }),
+  barRow: {
+    display: "grid",
+    gridTemplateColumns: "minmax(120px, 180px) 1fr auto",
+    gap: "12px",
+    alignItems: "center",
+    marginTop: "10px",
+  },
+  barLabel: {
+    fontSize: "15px",
+    color: tokens.ink,
+  },
+  barTrack: {
+    marginTop: 0,
+  },
+  barFill: (widthPercent: number, color: string, delayMs: number) => ({
+    height: "100%",
+    width: widthPercent <= 0 ? "0%" : `max(${widthPercent}%, 8px)`,
+    backgroundColor: color,
+    borderRadius: "6px",
+    transformOrigin: "left center",
+    animationName: {
+      default: grow,
+      "@media (prefers-reduced-motion: reduce)": "none",
+    },
+    animationDuration: "700ms",
+    animationTimingFunction: "ease-out",
+    animationDelay: `${delayMs}ms`,
+    animationFillMode: "both",
+  }),
+  barAmount: {
+    fontFamily: tokens.fontHand,
+    fontSize: "18px",
+    color: tokens.ink,
+  },
+  txList: {
+    margin: 0,
+    marginTop: "8px",
+    padding: 0,
+    listStyle: "none",
+  },
+  txRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: "12px",
+    alignItems: "center",
+    marginTop: "10px",
+    paddingTop: "12px",
+    paddingRight: "14px",
+    paddingBottom: "12px",
+    paddingLeft: "14px",
+    backgroundColor: tokens.paper,
+    borderWidth: "2px",
+    borderStyle: "solid",
+    borderColor: tokens.ink,
+    borderRadius: tokens.radiusCard,
+  },
+  txTitle: {
+    margin: 0,
+    fontFamily: tokens.fontHand,
+    fontSize: "20px",
+    color: tokens.ink,
+  },
+  amountOut: {
+    margin: 0,
+    fontFamily: tokens.fontHand,
+    fontSize: "22px",
+    color: tokens.redInk,
+  },
+  amountIn: {
+    margin: 0,
+    fontFamily: tokens.fontHand,
+    fontSize: "22px",
+    color: tokens.greenInk,
+  },
+  checkRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+  },
+  check: {
+    width: "28px",
+    height: "28px",
+    padding: 0,
+    fontFamily: tokens.fontHand,
+    fontSize: "18px",
+    lineHeight: 1,
+    backgroundColor: tokens.paper,
+    borderWidth: "2px",
+    borderStyle: "solid",
+    borderColor: tokens.ink,
+    borderRadius: "8px",
+    color: tokens.ink,
+    cursor: "pointer",
   },
 });
 
