@@ -2,7 +2,6 @@ import {
   type ChartMode,
   type SpendFilter,
   SpendFilter as SpendFilterSchema,
-  formatCad,
 } from "@expendiru/domain";
 import { Button, Select } from "@foldkit/ui";
 import { Option } from "effect";
@@ -14,11 +13,10 @@ import { type Model, Refresh, SpendMark, sameSpendMark } from "./model.ts";
 import {
   type PresentedSpend,
   type SpendRow,
-  lineChartHeight,
-  lineChartWidth,
-  pieRadius,
+  pieTrackPath,
   presentSpend,
 } from "./spend-present.ts";
+import { spendPageWindow } from "./spend-page.ts";
 import { palette, styleAttributes, styles } from "./theme.stylex.ts";
 
 const chartModes: ReadonlyArray<{ readonly mode: ChartMode; readonly label: string }> = [
@@ -105,17 +103,25 @@ const rowMark = (chart: ChartMode, row: SpendRow): SpendMark => {
     return SpendMark.Merchant({ key: row.merchantKey });
   }
 
-  if (chart === "line") {
-    return SpendMark.Day({ key: row.date });
-  }
-
   return SpendMark.Bucket({ key: row.bucketKey });
 };
 
-const tooltipText = (presented: PresentedSpend, hover: SpendMark): string =>
+const tooltipText = (
+  presented: PresentedSpend,
+  hover: SpendMark,
+  chart: ChartMode,
+): string =>
   SpendMark.match(hover, {
     Idle: () => "",
     Bucket: ({ key }) => {
+      if (chart === "line") {
+        for (const band of presented.stack.bands) {
+          if (band.key === key) {
+            return `${band.label} · ${band.amountLabel} · ${band.shareLabel}`;
+          }
+        }
+      }
+
       for (const ring of presented.rings) {
         if (ring.key === key) {
           return `${ring.label} · ${ring.amountLabel} · ${ring.percentLabel}`;
@@ -133,15 +139,7 @@ const tooltipText = (presented: PresentedSpend, hover: SpendMark): string =>
 
       return "";
     },
-    Day: ({ key }) => {
-      for (const point of presented.line.points) {
-        if (point.date === key) {
-          return `${point.date} · ${formatCad(point.cents)}`;
-        }
-      }
-
-      return "";
-    },
+    Day: () => "",
   });
 
 const chartSwitch = (active: ChartMode, h: HtmlBuilder<Message>): Html =>
@@ -236,42 +234,37 @@ const pieChart = (
   h: HtmlBuilder<Message>,
 ): Html =>
   h.div([...styleAttributes(h, stylex.props(styles.chartStage))], [
-    h.div([...styleAttributes(h, stylex.props(styles.chartPlot))], [
+    h.div(
+      [
+        h.DataAttribute("chart-surface", "pie"),
+        ...styleAttributes(h, stylex.props(styles.chartPlot, styles.chartHold)),
+      ],
+      [
       h.svg(
       [
         h.ViewBox("0 0 240 240"),
+        h.Width("240"),
+        h.Height("240"),
+        h.PreserveAspectRatio("xMidYMid meet"),
         h.Role("group"),
         h.AriaLabel("Spending by bucket"),
         ...styleAttributes(h, stylex.props(styles.chartPie)),
       ],
       [
-        h.circle([
-          h.Cx("120"),
-          h.Cy("120"),
-          h.R(String(pieRadius)),
-          h.Fill("none"),
-          h.Stroke(palette.track),
-          h.StrokeWidth("22"),
-          h.Attribute("pointer-events", "none"),
+        h.path([
+          h.D(pieTrackPath),
+          h.Fill(palette.track),
+          h.PointerEvents("none"),
         ]),
         ...presented.rings.map((ring) => {
           const mark = SpendMark.Bucket({ key: ring.key });
           const message = Message.ClickedSpendMark({ mark });
 
-          return h.keyed("circle")(
+          return h.keyed("path")(
             ring.key,
             [
-              h.Cx("120"),
-              h.Cy("120"),
-              h.R(String(pieRadius)),
-              h.Fill("none"),
-              h.Stroke(ring.color),
-              h.StrokeWidth("22"),
-              h.StrokeLinecap("butt"),
-              h.StrokeDasharray(
-                `${ring.length.toFixed(2)} ${(ring.circumference - ring.length).toFixed(2)}`,
-              ),
-              h.StrokeDashoffset(ring.offset.toFixed(2)),
+              h.D(ring.d),
+              h.Fill(ring.color),
               h.Role("button"),
               h.Tabindex(0),
               h.AriaLabel(`Show ${ring.label}`),
@@ -371,97 +364,125 @@ const barChart = (
     ),
   ]);
 
-const gridLine = (
-  key: string,
-  y: number,
-  ink: boolean,
-  h: HtmlBuilder<Message>,
-): Html =>
-  h.keyed("line")(key, [
-    h.X1("16"),
-    h.X2(String(lineChartWidth - 16)),
-    h.Y1(String(y)),
-    h.Y2(String(y)),
-    h.Stroke(ink ? palette.ink : palette.line),
-    h.StrokeWidth("1"),
-    h.ShapeRendering("crispEdges"),
-    h.VectorEffect("non-scaling-stroke"),
-  ]);
-
 const lineChart = (
   presented: PresentedSpend,
   hover: SpendMark,
   focus: SpendMark,
+  hidden: ReadonlyArray<string>,
   h: HtmlBuilder<Message>,
 ): Html => {
-  const line = presented.line;
+  const stack = presented.stack;
 
-  return h.div(
-    [...styleAttributes(h, stylex.props(styles.chartStage, styles.chartStageSolo))],
-    [
-      h.svg(
+  if (stack.empty) {
+    return h.div(
+      [...styleAttributes(h, stylex.props(styles.chartStage, styles.chartStageSolo))],
       [
-        h.ViewBox(`0 0 ${lineChartWidth} ${lineChartHeight}`),
+        h.p(
+          [...styleAttributes(h, stylex.props(styles.chartEmpty))],
+          ["No household, together, Carlos, or Maria spend in this filter."],
+        ),
+      ],
+    );
+  }
+
+  return h.div([...styleAttributes(h, stylex.props(styles.chartStage, styles.chartStagePlot))], [
+    h.div([...styleAttributes(h, stylex.props(styles.chartPlot))], [
+    h.svg(
+      [
+        h.ViewBox(`0 0 ${stack.width} ${stack.height}`),
+        h.Width(String(stack.width)),
+        h.Height(String(stack.height)),
         h.Role("group"),
-        h.AriaLabel("Spending by day"),
+        h.AriaLabel("Spending by month"),
         h.PreserveAspectRatio("xMidYMid meet"),
         ...styleAttributes(h, stylex.props(styles.chartLine)),
       ],
       [
-        gridLine("peak", line.top, false, h),
-        gridLine("mid", line.mid, false, h),
-        gridLine("base", line.baseline, true, h),
-        h.polyline([
-          h.Points(line.polyline),
-          h.Fill("none"),
-          h.Stroke(palette.accent),
-          h.StrokeWidth("1.5"),
-          h.StrokeLinejoin("round"),
-          h.StrokeLinecap("round"),
-          h.VectorEffect("non-scaling-stroke"),
-          h.Attribute("pointer-events", "none"),
-        ]),
-        ...line.points.flatMap((point) => {
-          if (point.cents <= 0) {
-            return [];
-          }
+            ...stack.bands.map((band) => {
+              const mark = SpendMark.Bucket({ key: band.key });
+              const message = Message.ClickedSpendMark({ mark });
 
-          const mark = SpendMark.Day({ key: point.date });
-          const message = Message.ClickedSpendMark({ mark });
-          const hot = sameSpendMark(focus, mark) || sameSpendMark(hover, mark);
-
-          return [
-            h.keyed("circle")(
-            point.date,
-            [
-              h.Cx(String(point.x)),
-              h.Cy(String(point.y)),
-              h.R(hot ? "7" : "5"),
-              h.Fill(hot ? palette.accent : palette.ink),
-              h.Role("button"),
-              h.Tabindex(0),
-              h.AriaLabel(`Show ${point.date}`),
-              h.AriaPressed(sameSpendMark(focus, mark) ? "true" : "false"),
-              h.OnClick(message),
-              h.OnMouseEnter(Message.HoveredSpendMark({ mark })),
-              h.OnMouseLeave(Message.ClearedSpendHover()),
-              activate(message, h),
-              ...styleAttributes(
-                h,
-                dimmed(hover, focus, mark)
-                  ? stylex.props(styles.mark, styles.markDim)
-                  : stylex.props(styles.mark),
-              ),
-            ],
-            [h.title([], [`${point.date} · ${formatCad(point.cents)}`])],
+              return h.keyed("path")(
+                band.key,
+                [
+                  h.D(band.path),
+                  h.Fill(band.fill),
+                  h.Role("button"),
+                  h.Tabindex(0),
+                  h.AriaLabel(`Show ${band.label}`),
+                  h.AriaPressed(sameSpendMark(focus, mark) ? "true" : "false"),
+                  h.OnClick(message),
+                  h.OnMouseEnter(Message.HoveredSpendMark({ mark })),
+                  h.OnMouseLeave(Message.ClearedSpendHover()),
+                  activate(message, h),
+                  ...styleAttributes(
+                    h,
+                    dimmed(hover, focus, mark)
+                      ? stylex.props(styles.mark, styles.markDim)
+                      : stylex.props(styles.mark),
+                  ),
+                ],
+                [h.title([], [`${band.label} · ${band.amountLabel} · ${band.shareLabel}`])],
+              );
+            }),
+            ...stack.bands.map((band) =>
+              h.keyed("path")(`line-${band.key}`, [
+                h.D(band.line),
+                h.Fill("none"),
+                h.Stroke(band.stroke),
+                h.StrokeWidth("1.5"),
+                h.StrokeLinejoin("round"),
+                h.StrokeLinecap("round"),
+                h.VectorEffect("non-scaling-stroke"),
+                h.PointerEvents("none"),
+              ]),
             ),
-          ];
-        }),
-      ],
+            ...stack.bands.map((band) =>
+              h.keyed("circle")(`dot-${band.key}`, [
+                h.Cx(String(band.dotX)),
+                h.Cy(String(band.dotY)),
+                h.R("3.5"),
+                h.Fill(band.stroke),
+                h.PointerEvents("none"),
+              ]),
+            ),
+            ...stack.bands.map((band) =>
+              h.keyed("text")(`callout-${band.key}`, [
+                h.X(String(band.calloutX)),
+                h.Y(String(band.calloutY)),
+                h.Fill(band.stroke),
+                h.FontSize("13"),
+                h.FontWeight("500"),
+                h.TextAnchor("start"),
+                h.DominantBaseline("middle"),
+                h.PointerEvents("none"),
+              ], [band.callout]),
+            ),
+            ...stack.months.map((month) =>
+              h.keyed("text")(month.key, [
+                h.X(String(month.x)),
+                h.Y(String(stack.height - 10)),
+                h.Fill(palette.muted),
+                h.FontSize("12"),
+                h.TextAnchor("middle"),
+                h.PointerEvents("none"),
+              ], [month.label]),
+            ),
+          ],
     ),
-    h.p(
-      [...styleAttributes(h, stylex.props(styles.caption))],
-      [`${line.firstDate} → ${line.lastDate} · peak ${line.maxLabel}`],
+    ]),
+    legend(
+      stack.bands.map((band) => ({
+        key: band.key,
+        label: band.label,
+        detail: `${band.amountLabel} · ${band.shareLabel}`,
+        color: band.color,
+        mark: SpendMark.Bucket({ key: band.key }),
+      })),
+      hidden,
+      hover,
+      focus,
+      h,
     ),
   ]);
 };
@@ -580,6 +601,10 @@ const chartBody = (
   hidden: ReadonlyArray<string>,
   h: HtmlBuilder<Message>,
 ): Html => {
+  if (mode === "line") {
+    return lineChart(presented, hover, focus, hidden, h);
+  }
+
   if (presented.chartEmpty) {
     return h.div(
       [...styleAttributes(h, stylex.props(styles.chartStage, styles.chartStageSolo))],
@@ -598,10 +623,6 @@ const chartBody = (
 
   if (mode === "bar") {
     return barChart(presented, hover, focus, hidden, h);
-  }
-
-  if (mode === "line") {
-    return lineChart(presented, hover, focus, h);
   }
 
   return pieChart(presented, hover, focus, hidden, h);
@@ -686,7 +707,7 @@ export const spendView = (model: Model, h: HtmlBuilder<Message>): Html => {
     chart,
     h.p(
       [...styleAttributes(h, stylex.props(styles.tooltip))],
-      [tooltipText(presented, model.spendHover)],
+      [tooltipText(presented, model.spendHover, model.spendChart)],
     ),
     h.h3(
       [...styleAttributes(h, stylex.props(styles.heading, styles.txHeading))],
@@ -694,12 +715,71 @@ export const spendView = (model: Model, h: HtmlBuilder<Message>): Html => {
     ),
     presented.rows.length === 0
       ? h.p([...styleAttributes(h, stylex.props(styles.lede))], ["Nothing in this filter."])
-      : transactionTable(
+      : transactionPage(
           model.spendChart,
           presented.rows,
+          model.spendPage,
           model.spendHover,
           model.spendFocus,
           h,
         ),
+  ]);
+};
+
+const transactionPage = (
+  chart: ChartMode,
+  rows: ReadonlyArray<SpendRow>,
+  page: number,
+  hover: SpendMark,
+  focus: SpendMark,
+  h: HtmlBuilder<Message>,
+): Html => {
+  const pageWindow = spendPageWindow(rows.length, page);
+  const visible = rows.slice(pageWindow.from, pageWindow.to);
+  const previous = pageWindow.current - 1;
+  const next = pageWindow.current + 1;
+
+  return h.div([...styleAttributes(h, stylex.props(styles.txBlock))], [
+    h.div([...styleAttributes(h, stylex.props(styles.txScroll))], [
+      transactionTable(chart, visible, hover, focus, h),
+    ]),
+    h.div([...styleAttributes(h, stylex.props(styles.pager))], [
+      h.button(
+        [
+          h.Type("button"),
+          h.Disabled(pageWindow.current === 0),
+          ...(pageWindow.current === 0
+            ? []
+            : [h.OnClick(Message.ClickedSpendPage({ page: previous }))]),
+          ...styleAttributes(
+            h,
+            pageWindow.current === 0
+              ? stylex.props(styles.button, styles.pagerButtonOff)
+              : stylex.props(styles.button),
+          ),
+        ],
+        ["Previous"],
+      ),
+      h.span(
+        [...styleAttributes(h, stylex.props(styles.pagerStatus))],
+        [`${pageWindow.from + 1}–${pageWindow.to} of ${rows.length}`],
+      ),
+      h.button(
+        [
+          h.Type("button"),
+          h.Disabled(pageWindow.current >= pageWindow.pages - 1),
+          ...(pageWindow.current >= pageWindow.pages - 1
+            ? []
+            : [h.OnClick(Message.ClickedSpendPage({ page: next }))]),
+          ...styleAttributes(
+            h,
+            pageWindow.current >= pageWindow.pages - 1
+              ? stylex.props(styles.button, styles.pagerButtonOff)
+              : stylex.props(styles.button),
+          ),
+        ],
+        ["Next"],
+      ),
+    ]),
   ]);
 };

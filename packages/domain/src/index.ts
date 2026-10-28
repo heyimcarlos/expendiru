@@ -25,6 +25,7 @@ export {
   ChartMode,
   DailySpend,
   LedgerTransaction,
+  MonthlyBucketSpend,
   SpendFeed,
   SpendFeedWire,
   SpendFilter,
@@ -39,13 +40,19 @@ export {
   isNonSpendBucket,
   merchantBars,
   merchantLabel,
+  monthlyBucketSeries,
+  monthlyBucketWire,
   outflowCents,
+  parseMonthlyByBucketCsv,
+  monthlyRowsFromDollars,
   querySpend,
   readAmountBounds,
   sameSpendFilter,
   spendFeedFromWire,
   spendStub,
+  stackBucketKeys,
+  stackSpendCents,
   totalOutflowCents,
 } from "./spend.ts";
 
-export type { SpendQuery } from "./spend.ts";
+export type { MonthlyCsvRead, MonthlyDollarRow, SpendQuery } from "./spend.ts";

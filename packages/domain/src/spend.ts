@@ -70,10 +70,38 @@ export const SpendPeriod = Schema.Struct({
 
 export interface SpendPeriod extends Schema.Schema.Type<typeof SpendPeriod> {}
 
+const IsoMonth = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}$/));
+
+export const stackBucketKeys = [
+  "household",
+  "together",
+  "carlos_personal",
+  "maria_personal",
+] as const;
+
+export const MonthlyBucketSpend = Schema.Struct({
+  month: IsoMonth,
+  household: Schema.Natural,
+  together: Schema.Natural,
+  carlosPersonal: Schema.Natural,
+  mariaPersonal: Schema.Natural,
+});
+
+export interface MonthlyBucketSpend extends Schema.Schema.Type<typeof MonthlyBucketSpend> {}
+
+const MonthlyBucketWire = Schema.Struct({
+  month: IsoMonth,
+  household: Schema.Natural,
+  together: Schema.Natural,
+  carlos_personal: Schema.Natural,
+  maria_personal: Schema.Natural,
+});
+
 export const SpendFeed = Schema.Struct({
   period: SpendPeriod,
   asOf: IsoDate,
   transactions: Schema.Array(LedgerTransaction),
+  monthlyByBucket: Schema.optionalKey(Schema.Array(MonthlyBucketSpend)),
 }).annotate({ identifier: "SpendFeed" });
 
 export interface SpendFeed extends Schema.Schema.Type<typeof SpendFeed> {}
@@ -124,6 +152,7 @@ export const SpendFeedWire = Schema.Struct({
   period: SpendPeriod,
   as_of: IsoDate,
   transactions: Schema.Array(TransactionWire),
+  monthly_by_bucket: Schema.optionalKey(Schema.Array(MonthlyBucketWire)),
 }).annotate({ identifier: "SpendFeedWire" });
 
 export interface SpendFeedWire extends Schema.Schema.Type<typeof SpendFeedWire> {}
@@ -505,6 +534,419 @@ export const dailySeries = (
   return points;
 };
 
+const blankMonth = () => ({
+  household: 0,
+  together: 0,
+  carlosPersonal: 0,
+  mariaPersonal: 0,
+});
+
+type MonthTotals = ReturnType<typeof blankMonth>;
+
+const addStackCents = (
+  totals: ReturnType<typeof blankMonth>,
+  bucket: string,
+  cents: number,
+): void => {
+  if (bucket === "household") {
+    totals.household += cents;
+
+    return;
+  }
+
+  if (bucket === "together") {
+    totals.together += cents;
+
+    return;
+  }
+
+  if (bucket === "carlos_personal") {
+    totals.carlosPersonal += cents;
+
+    return;
+  }
+
+  if (bucket === "maria_personal") {
+    totals.mariaPersonal += cents;
+  }
+};
+
+const nextMonth = (month: string): string => {
+  const year = Number(month.slice(0, 4));
+  const mon = Number(month.slice(5, 7));
+
+  if (!Number.isInteger(year) || !Number.isInteger(mon) || mon < 1 || mon > 12) {
+    return month;
+  }
+
+  if (mon === 12) {
+    return `${String(year + 1)}-01`;
+  }
+
+  const next = mon + 1;
+
+  return `${String(year)}-${next < 10 ? `0${String(next)}` : String(next)}`;
+};
+
+const txMonth = (tx: LedgerTransaction): string => {
+  if (/^\d{4}-\d{2}$/.test(tx.month)) {
+    return tx.month;
+  }
+
+  return tx.date.slice(0, 7);
+};
+
+const monthRow = (month: string, totals: MonthTotals): MonthlyBucketSpend =>
+  MonthlyBucketSpend.make({
+    month,
+    household: totals.household,
+    together: totals.together,
+    carlosPersonal: totals.carlosPersonal,
+    mariaPersonal: totals.mariaPersonal,
+  });
+
+export const monthlyBucketSeries = (
+  transactions: ReadonlyArray<LedgerTransaction>,
+  from: string,
+  to: string,
+): ReadonlyArray<MonthlyBucketSpend> => {
+  const start = from.slice(0, 7);
+  const end = to.slice(0, 7);
+
+  if (!/^\d{4}-\d{2}$/.test(start) || !/^\d{4}-\d{2}$/.test(end) || start > end) {
+    return [];
+  }
+
+  const totals = new Map<string, ReturnType<typeof blankMonth>>();
+
+  for (const tx of transactions) {
+    const cents = outflowCents(tx);
+
+    if (cents === 0) {
+      continue;
+    }
+
+    const month = txMonth(tx);
+    const current = totals.get(month) ?? blankMonth();
+
+    addStackCents(current, tx.budgetBucket, cents);
+    totals.set(month, current);
+  }
+
+  const rows: Array<MonthlyBucketSpend> = [];
+  let cursor = start;
+  let guard = 0;
+
+  while (cursor <= end && guard < 36) {
+    rows.push(monthRow(cursor, totals.get(cursor) ?? blankMonth()));
+
+    const next = nextMonth(cursor);
+
+    if (next === cursor) {
+      break;
+    }
+
+    cursor = next;
+    guard += 1;
+  }
+
+  return rows;
+};
+
+export const stackSpendCents = (row: MonthlyBucketSpend): number =>
+  row.household + row.together + row.carlosPersonal + row.mariaPersonal;
+
+const splitCsvLine = (line: string): Array<string> => {
+  const cells: Array<string> = [];
+  let current = "";
+  let quoted = false;
+
+  for (const char of line) {
+    if (char === '"') {
+      quoted = !quoted;
+      continue;
+    }
+
+    if (char === "," && !quoted) {
+      cells.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  cells.push(current.trim());
+
+  return cells;
+};
+
+const headerIndex = (header: ReadonlyArray<string>, name: string): number => {
+  const wanted = name.toLowerCase();
+  let index = 0;
+
+  for (const cell of header) {
+    if (cell.toLowerCase() === wanted) {
+      return index;
+    }
+
+    index += 1;
+  }
+
+  return -1;
+};
+
+const cellCents = (raw: string | undefined, asCents: boolean): number => {
+  if (raw === undefined) {
+    return 0;
+  }
+
+  const trimmed = raw.trim().replaceAll("$", "").replaceAll(",", "");
+
+  if (trimmed === "" || trimmed === "-") {
+    return 0;
+  }
+
+  const value = Number(trimmed);
+
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  if (asCents) {
+    return Math.round(Math.abs(value));
+  }
+
+  return Math.abs(dollarsToCents(value));
+};
+
+export type MonthlyCsvRead =
+  | { readonly ok: true; readonly rows: ReadonlyArray<MonthlyBucketSpend> }
+  | { readonly ok: false; readonly error: string };
+
+const rowsFromTotals = (
+  totals: ReadonlyMap<string, ReturnType<typeof blankMonth>>,
+): ReadonlyArray<MonthlyBucketSpend> => {
+  const months = [...totals.keys()].sort((left, right) => left.localeCompare(right));
+  const rows: Array<MonthlyBucketSpend> = [];
+
+  for (const month of months) {
+    if (!/^\d{4}-\d{2}$/.test(month)) {
+      continue;
+    }
+
+    const found = totals.get(month);
+
+    if (found !== undefined) {
+      rows.push(monthRow(month, found));
+    }
+  }
+
+  return rows;
+};
+
+export const parseMonthlyByBucketCsv = (text: string): MonthlyCsvRead => {
+  const lines: Array<string> = [];
+
+  for (const raw of text.replace(/^\uFEFF/, "").split(/\r?\n/)) {
+    const line = raw.trim();
+
+    if (line !== "") {
+      lines.push(line);
+    }
+  }
+
+  const headerLine = lines[0];
+
+  if (headerLine === undefined) {
+    return { ok: false, error: "monthly_by_bucket.csv is empty" };
+  }
+
+  const header = splitCsvLine(headerLine);
+  const monthCol = headerIndex(header, "month");
+
+  if (monthCol < 0) {
+    return { ok: false, error: "monthly_by_bucket.csv needs a month column" };
+  }
+
+  const bucketCol =
+    headerIndex(header, "budget_bucket") >= 0
+      ? headerIndex(header, "budget_bucket")
+      : headerIndex(header, "bucket");
+
+  const centsCol = headerIndex(header, "cents");
+
+  const amountCol =
+    headerIndex(header, "amount") >= 0
+      ? headerIndex(header, "amount")
+      : headerIndex(header, "dollars");
+
+  const householdCol = headerIndex(header, "household");
+  const togetherCol = headerIndex(header, "together");
+  const carlosCol = headerIndex(header, "carlos_personal");
+  const mariaCol = headerIndex(header, "maria_personal");
+
+  const wide =
+    householdCol >= 0 && togetherCol >= 0 && carlosCol >= 0 && mariaCol >= 0;
+
+  const long = bucketCol >= 0 && (centsCol >= 0 || amountCol >= 0);
+
+  if (!wide && !long) {
+    return {
+      ok: false,
+      error:
+        "monthly_by_bucket.csv needs household, together, carlos_personal, and maria_personal columns, or budget_bucket plus amount",
+    };
+  }
+
+  const totals = new Map<string, ReturnType<typeof blankMonth>>();
+
+  for (const line of lines.slice(1)) {
+    const cells = splitCsvLine(line);
+    const month = cells[monthCol] ?? "";
+
+    if (!/^\d{4}-\d{2}$/.test(month)) {
+      continue;
+    }
+
+    const current = totals.get(month) ?? blankMonth();
+
+    if (long && bucketCol >= 0) {
+      const bucket = (cells[bucketCol] ?? "").trim();
+
+      const cents =
+        centsCol >= 0 ? cellCents(cells[centsCol], true) : cellCents(cells[amountCol], false);
+
+      addStackCents(current, bucket, cents);
+    } else {
+      current.household += cellCents(cells[householdCol], false);
+      current.together += cellCents(cells[togetherCol], false);
+      current.carlosPersonal += cellCents(cells[carlosCol], false);
+      current.mariaPersonal += cellCents(cells[mariaCol], false);
+    }
+
+    totals.set(month, current);
+  }
+
+  return { ok: true, rows: rowsFromTotals(totals) };
+};
+
+export type MonthlyDollarRow = {
+  readonly month: string;
+  readonly household: number;
+  readonly together: number;
+  readonly carlos_personal: number;
+  readonly maria_personal: number;
+};
+
+export const monthlyRowsFromDollars = (
+  rows: ReadonlyArray<MonthlyDollarRow>,
+): MonthlyCsvRead => {
+  const totals = new Map<string, MonthTotals>();
+
+  for (const row of rows) {
+    if (!/^\d{4}-\d{2}$/.test(row.month)) {
+      continue;
+    }
+
+    const values = [row.household, row.together, row.carlos_personal, row.maria_personal];
+    let valid = true;
+
+    for (const value of values) {
+      if (!Number.isFinite(value)) {
+        valid = false;
+      }
+    }
+
+    if (!valid) {
+      return { ok: false, error: "monthly bucket amounts must be numbers" };
+    }
+
+    const current = totals.get(row.month) ?? blankMonth();
+
+    current.household += Math.abs(dollarsToCents(row.household));
+    current.together += Math.abs(dollarsToCents(row.together));
+    current.carlosPersonal += Math.abs(dollarsToCents(row.carlos_personal));
+    current.mariaPersonal += Math.abs(dollarsToCents(row.maria_personal));
+    totals.set(row.month, current);
+  }
+
+  if (rows.length > 0 && totals.size === 0) {
+    return { ok: false, error: "monthly_by_bucket.json needs YYYY-MM months" };
+  }
+
+  return { ok: true, rows: rowsFromTotals(totals) };
+};
+
+const monthlyFixtureDollars = [
+  {
+    month: "2026-07",
+    household: 1155.91,
+    together: 89.81,
+    carlos_personal: 3412.07,
+    maria_personal: 1461.45,
+  },
+  {
+    month: "2026-08",
+    household: 829.13,
+    together: 358.5,
+    carlos_personal: 1079.78,
+    maria_personal: 1207.41,
+  },
+  {
+    month: "2026-09",
+    household: 877.77,
+    together: 1062.89,
+    carlos_personal: 2941.1,
+    maria_personal: 1596.07,
+  },
+  {
+    month: "2026-10",
+    household: 988.62,
+    together: 876.19,
+    carlos_personal: 4011.53,
+    maria_personal: 1720.06,
+  },
+] as const;
+
+const monthlyFixtureWire = monthlyFixtureDollars.map((row) => ({
+  month: row.month,
+  household: Math.abs(dollarsToCents(row.household)),
+  together: Math.abs(dollarsToCents(row.together)),
+  carlos_personal: Math.abs(dollarsToCents(row.carlos_personal)),
+  maria_personal: Math.abs(dollarsToCents(row.maria_personal)),
+}));
+
+export const monthlyBucketWire = (
+  rows: ReadonlyArray<MonthlyBucketSpend>,
+): ReadonlyArray<{
+  readonly month: string;
+  readonly household: number;
+  readonly together: number;
+  readonly carlos_personal: number;
+  readonly maria_personal: number;
+}> => {
+  const wire: Array<{
+    readonly month: string;
+    readonly household: number;
+    readonly together: number;
+    readonly carlos_personal: number;
+    readonly maria_personal: number;
+  }> = [];
+
+  for (const row of rows) {
+    wire.push({
+      month: row.month,
+      household: row.household,
+      together: row.together,
+      carlos_personal: row.carlosPersonal,
+      maria_personal: row.mariaPersonal,
+    });
+  }
+
+  return wire;
+};
+
 const searchHaystack = (tx: LedgerTransaction): string =>
   [
     tx.merchant,
@@ -581,12 +1023,48 @@ const toLedger = (
     type: wire.type,
   });
 
-export const spendFeedFromWire = (wire: SpendFeedWire): SpendFeed =>
-  SpendFeed.make({
+const monthlyFromWire = (
+  rows: SpendFeedWire["monthly_by_bucket"],
+): ReadonlyArray<MonthlyBucketSpend> | undefined => {
+  if (rows === undefined) {
+    return undefined;
+  }
+
+  const decoded: Array<MonthlyBucketSpend> = [];
+
+  for (const row of rows) {
+    decoded.push(
+      MonthlyBucketSpend.make({
+        month: row.month,
+        household: row.household,
+        together: row.together,
+        carlosPersonal: row.carlos_personal,
+        mariaPersonal: row.maria_personal,
+      }),
+    );
+  }
+
+  return decoded;
+};
+
+export const spendFeedFromWire = (wire: SpendFeedWire): SpendFeed => {
+  const monthlyByBucket = monthlyFromWire(wire.monthly_by_bucket);
+
+  if (monthlyByBucket === undefined) {
+    return SpendFeed.make({
+      period: wire.period,
+      asOf: wire.as_of,
+      transactions: wire.transactions.map(toLedger),
+    });
+  }
+
+  return SpendFeed.make({
     period: wire.period,
     asOf: wire.as_of,
     transactions: wire.transactions.map(toLedger),
+    monthlyByBucket,
   });
+};
 
 interface StubDraft {
   readonly id: string;
@@ -635,6 +1113,7 @@ const wireTransaction = (draft: StubDraft) => ({
 export const encodedSpendStub = {
   period: { from: "2026-07-01", to: "2026-10-27" },
   as_of: "2026-10-27",
+  monthly_by_bucket: monthlyFixtureWire,
   transactions: [
     wireTransaction({
       id: "stub-transit",

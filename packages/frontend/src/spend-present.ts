@@ -1,23 +1,24 @@
 import {
   type ChartMode,
-  type DailySpend,
   type LedgerTransaction,
+  type MonthlyBucketSpend,
   type SpendFeed,
   type SpendFilter,
   type SpendSlice,
   bucketSlices,
   budgetBucketLabel,
-  dailySeries,
   formatCad,
   formatPercent,
   merchantBars,
   merchantLabel,
+  monthlyBucketSeries,
   querySpend,
   sharePercent,
+  stackSpendCents,
   totalOutflowCents,
 } from "@expendiru/domain";
 import { SpendMark } from "./model.ts";
-import { seriesPalette } from "./theme.stylex.ts";
+import { areaFills, seriesPalette } from "./theme.stylex.ts";
 
 export type SpendChoice = {
   readonly value: string;
@@ -33,6 +34,7 @@ export type PieRing = {
   readonly length: number;
   readonly offset: number;
   readonly circumference: number;
+  readonly d: string;
 };
 
 export type BarMark = {
@@ -43,24 +45,37 @@ export type BarMark = {
   readonly color: string;
 };
 
-export type LinePoint = {
-  readonly date: string;
+export type StackBand = {
+  readonly key: string;
+  readonly label: string;
+  readonly color: string;
+  readonly fill: string;
+  readonly stroke: string;
   readonly cents: number;
-  readonly x: number;
-  readonly y: number;
+  readonly amountLabel: string;
+  readonly shareLabel: string;
+  readonly path: string;
+  readonly line: string;
+  readonly dotX: number;
+  readonly dotY: number;
+  readonly callout: string;
+  readonly calloutX: number;
+  readonly calloutY: number;
 };
 
-export type LineChart = {
+export type StackMonthMark = {
+  readonly key: string;
+  readonly label: string;
+  readonly x: number;
+};
+
+export type StackChart = {
   readonly width: number;
   readonly height: number;
-  readonly top: number;
-  readonly mid: number;
-  readonly baseline: number;
-  readonly points: ReadonlyArray<LinePoint>;
-  readonly polyline: string;
-  readonly maxLabel: string;
-  readonly firstDate: string;
-  readonly lastDate: string;
+  readonly empty: boolean;
+  readonly caption: string;
+  readonly bands: ReadonlyArray<StackBand>;
+  readonly months: ReadonlyArray<StackMonthMark>;
 };
 
 export type SpendRow = {
@@ -85,7 +100,7 @@ export type PresentedSpend = {
   readonly amountError: boolean;
   readonly rings: ReadonlyArray<PieRing>;
   readonly bars: ReadonlyArray<BarMark>;
-  readonly line: LineChart;
+  readonly stack: StackChart;
   readonly rows: ReadonlyArray<SpendRow>;
   readonly people: ReadonlyArray<SpendChoice>;
   readonly accounts: ReadonlyArray<SpendChoice>;
@@ -99,11 +114,23 @@ export const pieRadius = 78;
 
 export const pieCircumference = 2 * Math.PI * pieRadius;
 
-export const lineChartWidth = 960;
+export const stackChartWidth = 520;
 
-export const lineChartHeight = 600;
+export const stackChartHeight = 230;
 
-const linePad = 16;
+const stackPadLeft = 4;
+
+const stackPadRight = 136;
+
+const stackPadTop = 18;
+
+const stackPadBottom = 28;
+
+const pieCenter = 120;
+
+const pieInner = pieRadius - 11;
+
+const pieOuter = pieRadius + 11;
 
 export const seriesColor = (index: number): string => {
   const color = seriesPalette[index % seriesPalette.length];
@@ -139,6 +166,96 @@ const bucketColor = (bucket: string, index: number): string => {
   return seriesColor(index);
 };
 
+const areaFill = (index: number): string => {
+  const color = areaFills[index % areaFills.length];
+
+  if (color !== undefined) {
+    return color;
+  }
+
+  return "#efece6";
+};
+
+const bucketFill = (bucket: string, index: number): string => {
+  if (bucket === "household") {
+    return areaFill(0);
+  }
+
+  if (bucket === "together") {
+    return areaFill(1);
+  }
+
+  if (bucket === "carlos_personal") {
+    return areaFill(2);
+  }
+
+  if (bucket === "maria_personal") {
+    return areaFill(3);
+  }
+
+  if (bucket === "move_oneoffs") {
+    return areaFill(4);
+  }
+
+  return areaFill(index);
+};
+
+const coord = (value: number): string => {
+  const rounded = Math.round(value * 100) / 100;
+
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+};
+
+const arcPoint = (radius: number, turns: number): readonly [number, number] => {
+  const theta = turns * 2 * Math.PI - Math.PI / 2;
+
+  return [pieCenter + radius * Math.cos(theta), pieCenter + radius * Math.sin(theta)];
+};
+
+const arcCommand = (radius: number, from: number, to: number, sweep: 0 | 1): string => {
+  const [x, y] = arcPoint(radius, to);
+  const span = Math.abs(to - from);
+  const large = span > 0.5 ? 1 : 0;
+
+  return `A ${coord(radius)} ${coord(radius)} 0 ${large} ${sweep} ${coord(x)} ${coord(y)}`;
+};
+
+export const donutSlicePath = (startTurns: number, endTurns: number): string => {
+  const span = endTurns - startTurns;
+
+  if (span <= 0) {
+    return "";
+  }
+
+  if (span >= 0.999) {
+    const [outerX, outerY] = arcPoint(pieOuter, 0);
+    const [innerX, innerY] = arcPoint(pieInner, 0);
+
+    return [
+      `M ${coord(outerX)} ${coord(outerY)}`,
+      arcCommand(pieOuter, 0, 0.5, 1),
+      arcCommand(pieOuter, 0.5, 1, 1),
+      `L ${coord(innerX)} ${coord(innerY)}`,
+      arcCommand(pieInner, 1, 0.5, 0),
+      arcCommand(pieInner, 0.5, 0, 0),
+      "Z",
+    ].join(" ");
+  }
+
+  const [outerX, outerY] = arcPoint(pieOuter, startTurns);
+  const [innerEndX, innerEndY] = arcPoint(pieInner, endTurns);
+
+  return [
+    `M ${coord(outerX)} ${coord(outerY)}`,
+    arcCommand(pieOuter, startTurns, endTurns, 1),
+    `L ${coord(innerEndX)} ${coord(innerEndY)}`,
+    arcCommand(pieInner, endTurns, startTurns, 0),
+    "Z",
+  ].join(" ");
+};
+
+export const pieTrackPath = donutSlicePath(0, 1);
+
 export const categoryLabel = (value: string): string => {
   if (value === "") {
     return "Uncategorized";
@@ -169,6 +286,8 @@ export const pieRings = (slices: ReadonlyArray<SpendSlice>): ReadonlyArray<PieRi
     const raw = (slice.cents / total) * pieCircumference;
     const length = slices.length === 1 ? pieCircumference : Math.max(0, raw - gap);
 
+    const start = consumed / pieCircumference;
+
     rings.push({
       key: slice.key,
       label: slice.label,
@@ -178,6 +297,7 @@ export const pieRings = (slices: ReadonlyArray<SpendSlice>): ReadonlyArray<PieRi
       length,
       offset: pieCircumference / 4 - consumed,
       circumference: pieCircumference,
+      d: donutSlicePath(start, start + length / pieCircumference),
     });
     consumed += raw;
     index += 1;
@@ -212,79 +332,361 @@ export const barMarks = (slices: ReadonlyArray<SpendSlice>): ReadonlyArray<BarMa
   return marks;
 };
 
-const yAt = (cents: number, maxCents: number): number => {
-  const plotHeight = lineChartHeight - linePad * 2;
+const formatShare = (value: number): string => {
+  const rounded = Math.round(value * 10) / 10;
 
-  if (maxCents <= 0) {
-    return lineChartHeight - linePad;
-  }
-
-  return linePad + Math.round(plotHeight - (cents / maxCents) * plotHeight);
+  return `${rounded.toFixed(1)}%`;
 };
 
-const xAt = (index: number, count: number): number => {
-  const plotWidth = lineChartWidth - linePad * 2;
+const monthNames = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
+const monthLabel = (month: string, first: boolean): string => {
+  const index = Number(month.slice(5, 7)) - 1;
+  const name = monthNames[index];
+  const short = name === undefined ? month : name;
+
+  if (!first) {
+    return short;
+  }
+
+  return `${short} '${month.slice(2, 4)}`;
+};
+
+const stackPlotWidth = stackChartWidth - stackPadLeft - stackPadRight;
+
+const stackPlotHeight = stackChartHeight - stackPadTop - stackPadBottom;
+
+const stackBaseline = stackPadTop + stackPlotHeight;
+
+const stackX = (index: number, count: number): number => {
   if (count <= 1) {
-    return linePad + Math.round(plotWidth / 2);
+    return stackPadLeft + Math.round(stackPlotWidth / 2);
   }
 
-  return linePad + Math.round((index * plotWidth) / (count - 1));
+  return stackPadLeft + Math.round((index * stackPlotWidth) / (count - 1));
 };
 
-export const lineChart = (series: ReadonlyArray<DailySpend>): LineChart => {
-  let maxCents = 0;
+const stackY = (cents: number, maxCents: number): number => {
+  if (maxCents <= 0) {
+    return stackBaseline;
+  }
 
-  for (const point of series) {
-    if (point.cents > maxCents) {
-      maxCents = point.cents;
+  return Math.round(stackPadTop + stackPlotHeight - (cents / maxCents) * stackPlotHeight);
+};
+
+const bucketCents = (row: MonthlyBucketSpend, key: string): number => {
+  if (key === "household") {
+    return row.household;
+  }
+
+  if (key === "together") {
+    return row.together;
+  }
+
+  if (key === "carlos_personal") {
+    return row.carlosPersonal;
+  }
+
+  if (key === "maria_personal") {
+    return row.mariaPersonal;
+  }
+
+  return 0;
+};
+
+const stackLayers = [
+  { key: "household", label: "Household" },
+  { key: "together", label: "Together" },
+  { key: "carlos_personal", label: "Carlos" },
+  { key: "maria_personal", label: "Maria" },
+] as const;
+
+type CurvePoint = {
+  readonly x: number;
+  readonly y: number;
+};
+
+const smoothLine = (points: ReadonlyArray<CurvePoint>): string => {
+  const first = points[0];
+
+  if (first === undefined) {
+    return "";
+  }
+
+  if (points.length === 1) {
+    return `M ${coord(first.x)} ${coord(first.y)}`;
+  }
+
+  const slopes: Array<number> = [];
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const left = points[index];
+    const right = points[index + 1];
+    const run = (right?.x ?? 0) - (left?.x ?? 0);
+    const rise = (right?.y ?? 0) - (left?.y ?? 0);
+    slopes.push(run === 0 ? 0 : rise / run);
+  }
+
+  const tangents = slopes.map((slope, index) => {
+    if (index === 0) {
+      return slope;
+    }
+
+    const previous = slopes[index - 1] ?? 0;
+
+    if (previous * slope <= 0) {
+      return 0;
+    }
+
+    return (previous + slope) / 2;
+  });
+
+  const lastSlope = slopes.at(-1) ?? 0;
+  tangents.push(lastSlope);
+
+  for (let index = 0; index < slopes.length; index += 1) {
+    const slope = slopes[index] ?? 0;
+
+    if (slope === 0) {
+      tangents[index] = 0;
+      tangents[index + 1] = 0;
+      continue;
+    }
+
+    const start = (tangents[index] ?? 0) / slope;
+    const end = (tangents[index + 1] ?? 0) / slope;
+    const scale = Math.hypot(start, end);
+
+    if (scale > 3) {
+      const tau = 3 / scale;
+      tangents[index] = tau * start * slope;
+      tangents[index + 1] = tau * end * slope;
     }
   }
 
-  const points: Array<LinePoint> = [];
+  const commands = [`M ${coord(first.x)} ${coord(first.y)}`];
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const left = points[index];
+    const right = points[index + 1];
+
+    if (left === undefined || right === undefined) {
+      continue;
+    }
+
+    const run = right.x - left.x;
+    const start = tangents[index] ?? 0;
+    const end = tangents[index + 1] ?? 0;
+    commands.push(
+      `C ${coord(left.x + run / 3)} ${coord(left.y + (start * run) / 3)} ${coord(right.x - run / 3)} ${coord(right.y - (end * run) / 3)} ${coord(right.x)} ${coord(right.y)}`,
+    );
+  }
+
+  return commands.join(" ");
+};
+
+const separateCallouts = (ys: ReadonlyArray<number>): Array<number> => {
+  const order = ys
+    .map((y, index) => ({ y, index }))
+    .sort((left, right) => left.y - right.y);
+
+  const placed = order.map((item) => item.y);
+  const minGap = 22;
+  let index = 1;
+
+  while (index < placed.length) {
+    const previous = placed[index - 1] ?? stackPadTop;
+    const current = placed[index] ?? previous;
+
+    if (current < previous + minGap) {
+      placed[index] = previous + minGap;
+    }
+
+    index += 1;
+  }
+
+  const last = placed.at(-1);
+
+  if (last !== undefined && last > stackBaseline) {
+    const shift = last - stackBaseline;
+    let cursor = 0;
+
+    while (cursor < placed.length) {
+      const value = placed[cursor] ?? stackBaseline;
+      placed[cursor] = Math.max(stackPadTop, value - shift);
+      cursor += 1;
+    }
+  }
+
+  const result = ys.map((y) => y);
+  let cursor = 0;
+
+  while (cursor < order.length) {
+    const item = order[cursor];
+    const y = placed[cursor];
+
+    if (item !== undefined && y !== undefined) {
+      result[item.index] = y;
+    }
+
+    cursor += 1;
+  }
+
+  return result;
+};
+
+export const stackChart = (rows: ReadonlyArray<MonthlyBucketSpend>): StackChart => {
+  const months: Array<StackMonthMark> = [];
   let index = 0;
 
-  for (const point of series) {
-    points.push({
-      date: point.date,
-      cents: point.cents,
-      x: xAt(index, series.length),
-      y: yAt(point.cents, maxCents),
+  for (const row of rows) {
+    months.push({
+      key: row.month,
+      label: monthLabel(row.month, index === 0),
+      x: stackX(index, rows.length),
     });
     index += 1;
   }
 
-  const top = yAt(maxCents, maxCents);
-  const baseline = yAt(0, maxCents);
-  const polyline = points.map((point) => `${point.x},${point.y}`).join(" ");
-  const first = points[0];
-  const last = points.at(-1);
+  let maxCents = 0;
+
+  for (const row of rows) {
+    const total = stackSpendCents(row);
+
+    if (total > maxCents) {
+      maxCents = total;
+    }
+  }
+
+  const totals = {
+    household: 0,
+    together: 0,
+    carlosPersonal: 0,
+    mariaPersonal: 0,
+  };
+
+  for (const row of rows) {
+    totals.household += row.household;
+    totals.together += row.together;
+    totals.carlosPersonal += row.carlosPersonal;
+    totals.mariaPersonal += row.mariaPersonal;
+  }
+
+  const whole =
+    totals.household + totals.together + totals.carlosPersonal + totals.mariaPersonal;
+
+  const endRow = rows.at(-1);
+  const endWhole = endRow === undefined ? 0 : stackSpendCents(endRow);
+
+  const totalRow: MonthlyBucketSpend = {
+    month: "0000-01",
+    household: totals.household,
+    together: totals.together,
+    carlosPersonal: totals.carlosPersonal,
+    mariaPersonal: totals.mariaPersonal,
+  };
+
+  const bands: Array<StackBand> = [];
+  const calloutYs: Array<{ readonly y: number }> = [];
+  const floors = rows.map(() => 0);
+
+  for (const layer of stackLayers) {
+    const cents = bucketCents(totalRow, layer.key);
+    const endCents = endRow === undefined ? 0 : bucketCents(endRow, layer.key);
+    const shareLabel = formatShare(sharePercent(endCents, endWhole));
+
+    if (cents <= 0 || rows.length === 0) {
+      continue;
+    }
+
+    const top = floors.map((floor, point) => {
+      const row = rows[point];
+      const next = floor + (row === undefined ? 0 : bucketCents(row, layer.key));
+
+      floors[point] = next;
+
+      return next;
+    });
+
+    const ceiling: Array<CurvePoint> = [];
+    const floorLine: Array<CurvePoint> = [];
+
+    for (let point = 0; point < top.length; point += 1) {
+      const row = rows[point];
+      const added = row === undefined ? 0 : bucketCents(row, layer.key);
+      const x = months[point]?.x ?? stackPadLeft;
+      ceiling.push({ x, y: stackY(top[point] ?? 0, maxCents) });
+      floorLine.push({ x, y: stackY((top[point] ?? 0) - added, maxCents) });
+    }
+
+    const ceilingPath = smoothLine(ceiling);
+    const floorPath = smoothLine([...floorLine].reverse()).replace(/^M/, "L");
+    const end = ceiling.at(-1);
+    const dotX = end?.x ?? stackPadLeft;
+    const dotY = end?.y ?? stackBaseline;
+    const stroke = bucketColor(layer.key, bands.length);
+
+    calloutYs.push({ y: dotY });
+    bands.push({
+      key: layer.key,
+      label: layer.label,
+      color: stroke,
+      fill: bucketFill(layer.key, bands.length),
+      stroke,
+      cents,
+      amountLabel: formatCad(cents),
+      shareLabel,
+      path: `${ceilingPath} ${floorPath} Z`,
+      line: ceilingPath,
+      dotX,
+      dotY,
+      callout: `${layer.label} ${shareLabel}`,
+      calloutX: dotX + 14,
+      calloutY: dotY,
+    });
+  }
+
+  const placed = separateCallouts(calloutYs.map((band) => band.y));
+
+  const shifted = bands.map((band, bandIndex) => ({
+    ...band,
+    calloutY: placed[bandIndex] ?? band.calloutY,
+  }));
+
+  const first = months[0];
+  const last = months.at(-1);
 
   return {
-    width: lineChartWidth,
-    height: lineChartHeight,
-    top,
-    mid: Math.round((top + baseline) / 2),
-    baseline,
-    points,
-    polyline,
-    maxLabel: formatCad(maxCents),
-    firstDate: first === undefined ? "" : first.date,
-    lastDate: last === undefined ? "" : last.date,
+    width: stackChartWidth,
+    height: stackChartHeight,
+    empty: whole <= 0 || months.length === 0,
+    caption:
+      first === undefined || last === undefined ? "" : `${first.label} → ${last.label}`,
+    bands: shifted,
+    months,
   };
 };
 
-const emptyLine = (): LineChart => ({
-  width: lineChartWidth,
-  height: lineChartHeight,
-  top: linePad,
-  mid: Math.round(lineChartHeight / 2),
-  baseline: lineChartHeight - linePad,
-  points: [],
-  polyline: "",
-  maxLabel: formatCad(0),
-  firstDate: "",
-  lastDate: "",
+const emptyStack = (): StackChart => ({
+  width: stackChartWidth,
+  height: stackChartHeight,
+  empty: true,
+  caption: "",
+  bands: [],
+  months: [],
 });
 
 const choiceList = (
@@ -356,7 +758,7 @@ const chartTitle = (chart: ChartMode): string => {
   }
 
   if (chart === "line") {
-    return "By day";
+    return "By month";
   }
 
   return "By bucket";
@@ -390,13 +792,19 @@ const lineBounds = (
   return { from, to };
 };
 
+const isHiddenSeries = (hidden: ReadonlyArray<string>, key: string): boolean => {
+  for (const item of hidden) {
+    if (item === key) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 const seriesKey = (chart: ChartMode, tx: LedgerTransaction): string => {
   if (chart === "bar") {
     return merchantLabel(tx);
-  }
-
-  if (chart === "line") {
-    return tx.date;
   }
 
   return tx.budgetBucket;
@@ -470,8 +878,41 @@ export const presentSpend = (
   const merchants = merchantBars(chartTransactions, 8);
   const bounds = lineBounds(filter, chartTransactions);
 
-  const series =
-    bounds === undefined ? [] : dailySeries(chartTransactions, bounds.from, bounds.to);
+  const fromTransactions =
+    bounds === undefined
+      ? []
+      : monthlyBucketSeries(chartTransactions, bounds.from, bounds.to);
+
+  const feedMonths = feed.monthlyByBucket ?? [];
+  const rangedFeed: Array<MonthlyBucketSpend> = [];
+
+  for (const row of feedMonths) {
+    if (bounds === undefined) {
+      rangedFeed.push(row);
+      continue;
+    }
+
+    const start = bounds.from.slice(0, 7);
+    const end = bounds.to.slice(0, 7);
+
+    if (row.month >= start && row.month <= end) {
+      rangedFeed.push(row);
+    }
+  }
+
+  const hiddenRows: Array<MonthlyBucketSpend> = [];
+
+  for (const row of rangedFeed.length > 0 ? rangedFeed : fromTransactions) {
+    hiddenRows.push({
+      month: row.month,
+      household: isHiddenSeries(hidden, "household") ? 0 : row.household,
+      together: isHiddenSeries(hidden, "together") ? 0 : row.together,
+      carlosPersonal: isHiddenSeries(hidden, "carlos_personal") ? 0 : row.carlosPersonal,
+      mariaPersonal: isHiddenSeries(hidden, "maria_personal") ? 0 : row.mariaPersonal,
+    });
+  }
+
+  const stacked = hiddenRows;
 
   const noun = listTransactions.length === 1 ? "transaction" : "transactions";
 
@@ -483,7 +924,7 @@ export const presentSpend = (
     amountError: !queried.amountValid,
     rings: pieRings(slices),
     bars: barMarks(merchants),
-    line: series.length === 0 || outflow === 0 ? emptyLine() : lineChart(series),
+    stack: stacked.length === 0 ? emptyStack() : stackChart(stacked),
     rows: listTransactions.map(presentRow),
     people: choiceList(
       filter.person,

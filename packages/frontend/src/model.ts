@@ -48,6 +48,7 @@ export const Model = Schema.Struct({
   spendFocus: SpendMark,
   spendHover: SpendMark,
   spendHidden: Schema.Array(Schema.String),
+  spendPage: Schema.Int,
 });
 
 export type Model = typeof Model.Type;
@@ -58,9 +59,10 @@ export const initialModel = Model.make({
   replay: 0,
   spend: spendStub,
   spendRefresh: Refresh.Idle(),
-  spendChart: "pie",
+  spendChart: "line",
   spendFilter: defaultSpendFilter(spendStub.period.from, spendStub.period.to),
   spendFocus: SpendMark.Idle(),
   spendHover: SpendMark.Idle(),
   spendHidden: [],
+  spendPage: 0,
 });

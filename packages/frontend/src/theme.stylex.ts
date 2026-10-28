@@ -4,10 +4,10 @@ import * as stylex from "@stylexjs/stylex";
 export const palette = {
   ink: "#18181b",
   muted: "#71717a",
-  paper: "#f4f4f5",
-  surface: "#ffffff",
-  line: "#e4e4e7",
-  track: "#ececee",
+  paper: "#f6f4f0",
+  surface: "#fbfaf7",
+  line: "#e4dfd6",
+  track: "#ece8e1",
   accent: "#5e6ad2",
   green: "#18794e",
   red: "#d1242f",
@@ -15,20 +15,28 @@ export const palette = {
 } as const;
 
 export const seriesPalette = [
-  "#5e6ad2",
-  "#2f2f33",
-  "#8b909a",
-  "#b7b9c2",
-  "#3d4d73",
+  "#8a847a",
+  "#6f6a63",
+  "#6d5b78",
+  "#5a4a66",
+  "#b3aa9e",
+] as const;
+
+export const areaFills = [
+  "#e7e2d8",
+  "#ddd6cc",
+  "#e6dceb",
+  "#ddd0e4",
+  "#efece6",
 ] as const;
 
 export const tokens = stylex.defineVars({
   ink: "#18181b",
   muted: "#71717a",
-  paper: "#f4f4f5",
-  surface: "#ffffff",
-  line: "#e4e4e7",
-  track: "#ececee",
+  paper: "#f6f4f0",
+  surface: "#fbfaf7",
+  line: "#e4dfd6",
+  track: "#ece8e1",
   accent: "#5e6ad2",
   accentInk: "#ffffff",
   green: "#18794e",
@@ -43,6 +51,9 @@ export const tokens = stylex.defineVars({
 export const styles = stylex.create({
   page: {
     minHeight: "100vh",
+    maxWidth: "100%",
+    overflowX: "clip",
+    overflowAnchor: "none",
     color: tokens.ink,
     backgroundColor: tokens.paper,
     fontFamily: tokens.fontBody,
@@ -51,6 +62,7 @@ export const styles = stylex.create({
   },
   shell: {
     maxWidth: "1200px",
+    minWidth: 0,
     marginTop: 0,
     marginRight: "auto",
     marginBottom: 0,
@@ -59,6 +71,11 @@ export const styles = stylex.create({
     paddingRight: "24px",
     paddingBottom: "4px",
     paddingLeft: "24px",
+    "@media (max-width: 720px)": {
+      paddingTop: "20px",
+      paddingRight: "16px",
+      paddingLeft: "16px",
+    },
   },
   eyebrow: {
     margin: 0,
@@ -316,6 +333,10 @@ export const styles = stylex.create({
   },
   personControl: {
     minWidth: "148px",
+    maxWidth: "100%",
+    "@media (max-width: 720px)": {
+      minWidth: "0",
+    },
   },
   fieldLabel: {
     color: tokens.muted,
@@ -348,16 +369,23 @@ export const styles = stylex.create({
     paddingRight: "24px",
     paddingBottom: "20px",
     paddingLeft: "24px",
-    backgroundColor: tokens.surface,
+    backgroundColor: tokens.paper,
     borderWidth: "1px",
     borderStyle: "solid",
     borderColor: tokens.line,
     borderRadius: tokens.radius,
+    overflow: "visible",
     "@media (max-width: 720px)": {
       gridTemplateColumns: "1fr",
+      minHeight: "auto",
+      paddingRight: "12px",
+      paddingLeft: "12px",
     },
   },
   chartStageSolo: {
+    gridTemplateColumns: "minmax(0, 1fr)",
+  },
+  chartStagePlot: {
     gridTemplateColumns: "minmax(0, 1fr)",
   },
   chartPlot: {
@@ -365,6 +393,15 @@ export const styles = stylex.create({
     alignItems: "center",
     justifyContent: "center",
     minWidth: 0,
+    width: "100%",
+    overflow: "visible",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    WebkitTapHighlightColor: "transparent",
+  },
+  chartHold: {
+    touchAction: "none",
+    overscrollBehavior: "none",
   },
   chartBars: {
     display: "flex",
@@ -375,17 +412,28 @@ export const styles = stylex.create({
     minHeight: "min(calc(100vh - 320px), 800px)",
   },
   chartPie: {
-    width: "min(calc(100vh - 320px), 100%, 800px)",
+    width: "100%",
+    maxWidth: "min(800px, calc(100vh - 320px))",
     height: "auto",
     aspectRatio: "1",
     display: "block",
+    overflow: "visible",
+    outlineStyle: "none",
+    touchAction: "none",
+    "@media (max-width: 720px)": {
+      maxWidth: "100%",
+    },
   },
   chartLine: {
     width: "100%",
-    height: "min(calc(100vh - 320px), 800px)",
+    height: "auto",
+    aspectRatio: "520 / 230",
+    maxHeight: "min(calc(100vh - 320px), 800px)",
     display: "block",
+    overflow: "visible",
+    outlineStyle: "none",
     "@media (max-width: 720px)": {
-      height: "min(calc(100vh - 360px), 480px)",
+      maxHeight: "none",
     },
   },
   chartEmpty: {
@@ -458,7 +506,12 @@ export const styles = stylex.create({
   barButton: {
     display: "grid",
     width: "100%",
-    gridTemplateColumns: "minmax(120px, 200px) 1fr auto",
+    gridTemplateColumns: "minmax(120px, 200px) minmax(0, 1fr) auto",
+    "@media (max-width: 720px)": {
+      gridTemplateColumns: "minmax(0, 1fr)",
+      gap: "6px",
+      maxHeight: "none",
+    },
     gap: "16px",
     alignItems: "center",
     flex: "1 1 auto",
@@ -528,10 +581,21 @@ export const styles = stylex.create({
   txHeading: {
     marginTop: "28px",
   },
+  txBlock: {
+    minWidth: 0,
+    maxWidth: "100%",
+  },
+  txScroll: {
+    width: "100%",
+    maxWidth: "100%",
+    overflowX: "auto",
+  },
   txTable: {
     width: "100%",
+    maxWidth: "100%",
     borderCollapse: "collapse",
     marginTop: "8px",
+    tableLayout: "fixed",
     textAlign: "left",
   },
   txHead: {
@@ -593,20 +657,37 @@ export const styles = stylex.create({
     color: tokens.ink,
   },
   txDate: {
-    width: "9.5rem",
+    width: "22%",
     fontVariantNumeric: "tabular-nums",
     whiteSpace: "nowrap",
   },
   txNumeric: {
-    width: "8.5rem",
+    width: "22%",
     textAlign: "right",
     fontVariantNumeric: "tabular-nums",
     whiteSpace: "nowrap",
+  },
+  pager: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "8px",
+    marginTop: "12px",
+  },
+  pagerStatus: {
+    color: tokens.muted,
+    fontSize: "13px",
+    fontVariantNumeric: "tabular-nums",
+  },
+  pagerButtonOff: {
+    opacity: 0.4,
+    cursor: "default",
   },
   txMerchant: {
     display: "block",
     fontWeight: 500,
     color: tokens.ink,
+    overflowWrap: "anywhere",
   },
   txMeta: {
     display: "block",
@@ -727,9 +808,17 @@ export const styles = stylex.create({
   },
   mark: {
     cursor: "pointer",
+    outlineStyle: "none",
+    WebkitTapHighlightColor: "transparent",
     transitionProperty: "opacity",
     transitionDuration: "120ms",
     transitionTimingFunction: "ease",
+    ":focus": {
+      outlineStyle: "none",
+    },
+    ":focus-visible": {
+      outlineStyle: "none",
+    },
   },
   markDim: {
     opacity: 0.38,
