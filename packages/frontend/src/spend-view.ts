@@ -591,7 +591,7 @@ const transactionTable = (
             row.id,
             [
               h.Tabindex(0),
-              h.AriaSelected(sameSpendMark(focus, mark) ? "true" : "false"),
+              h.AriaSelected(sameSpendMark(focus, mark)),
               h.OnClick(message),
               h.OnMouseEnter(Message.HoveredSpendMark({ mark })),
               h.OnMouseLeave(Message.ClearedSpendHover()),

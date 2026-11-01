@@ -68,7 +68,14 @@ describe("init", () => {
     expect(started.model.snapshot.householdName).toBe("Carlos & Maria");
     expect(started.model.refresh).toEqual(Refresh.Loading());
     expect(started.model.spendRefresh).toEqual(Refresh.Loading());
-    expect(started.commands.map((command) => [command.name, command.args])).toEqual([
+
+    const commands = started.commands;
+
+    if (commands === undefined) {
+      throw new Error("init did not schedule commands");
+    }
+
+    expect(commands.map((command) => [command.name, command.args])).toEqual([
       ["LoadSnapshot", { generation: 0 }],
       ["LoadSpend", { generation: 0 }],
     ]);
