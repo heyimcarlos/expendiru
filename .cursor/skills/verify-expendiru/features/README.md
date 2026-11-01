@@ -40,4 +40,5 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Pie selection](./pie-select.md) covers tapping a slice, keeping the page still, and filtering the table.
 - [Stacked area](./stacked-area.md) covers the Line chart for the four monthly buckets.
 - [Transaction pages](./transaction-pages.md) covers the 25-row pager.
+- [Spend accessibility](./a11y.md) covers the skip link, status region, touch targets, and chart-mode keys.
 - [Mobile edges](./mobile-edges.md) covers the 390px viewport staying inside the screen.

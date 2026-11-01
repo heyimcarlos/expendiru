@@ -1,6 +1,17 @@
 {
   "extends": ["../../.oxlintrc.json"],
   "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["@expendiru/frontend", "@expendiru/frontend/**"],
+            "message": "The Worker does not import the Foldkit application."
+          }
+        ]
+      }
+    ],
     "no-restricted-properties": [
       "error",
       {

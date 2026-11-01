@@ -96,6 +96,10 @@ The chart fills most of the first screen. Mode tabs and a person menu sit above 
 
 Choosing a pie slice, merchant bar, or day filters the table. Choosing it again, or Clear selection, restores the rows. The legend toggles a series out of both the chart and the table. Chart geometry stays put; the mode control is the one clip-path move, and press states scale to 0.97. `prefers-reduced-motion` drops those transforms.
 
+The address remembers the chart mode, the person, the selection, and the table page: `/?chart=pie&person=Carlos&mark=bucket:household&page=2`. The line chart, any person, no selection, and the first page leave those keys off. Back and forward follow that query. While a refresh is in flight the page shows a skeleton and no balances. A failed refresh keeps the stub or the last feed and says so.
+
+How the page is split, and how the tests reach it without Access, is in [docs/architecture.md](docs/architecture.md) and [docs/testing.md](docs/testing.md).
+
 Check a local drop against those totals (no-op when the directory is missing):
 
 ```sh

@@ -23,6 +23,8 @@ packages/backend/src/live-snapshot.generated.ts
 /finance/
 packages/backend/src/spend.generated.ts
 /artifacts/
+/test-results/
+/playwright-report/
 
 # Local screenshots of live balances.
 /expendiru-shots/

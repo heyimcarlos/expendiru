@@ -60,6 +60,13 @@ Stable handles on the spend page:
 
 Other mapped features use the same browser session shape. Their recipes are in `features/`. Drive one feature per invocation.
 
+```sh
+node scripts/verify-expendiru.mjs drive pager
+node scripts/verify-expendiru.mjs drive a11y
+```
+
+`drive pager` checks the stub pager at 390px: status `1–6 of 6`, both buttons disabled, and writes `artifacts/verify-expendiru/pager/table.png`. `drive a11y` checks the skip link, the polite `#spend-status` region, chart-mode and pager touch targets of at least 44px, ArrowLeft from Line to Bar, and that the page is not wider than the viewport. It writes `artifacts/verify-expendiru/a11y/mobile.png`.
+
 ## Evidence
 
 Proof goes to `artifacts/verify-expendiru/<feature>/`. `pie-select` writes `before.png`, `after-first.png`, `after-second.png`, and `result.json`.
@@ -87,6 +94,8 @@ Cleanup sends `SIGTERM` to the verify process group recorded in `/tmp/verify-exp
 node scripts/verify-expendiru.mjs launch
 node scripts/verify-expendiru.mjs doctor
 node scripts/verify-expendiru.mjs drive pie-select
+node scripts/verify-expendiru.mjs drive pager
+node scripts/verify-expendiru.mjs drive a11y
 node scripts/verify-expendiru.mjs cleanup
 ```
 

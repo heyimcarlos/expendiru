@@ -12,7 +12,8 @@
     "check:spend": "node --experimental-strip-types scripts/check-spend-feed.ts",
     "typecheck": "node scripts/ensure-spend-payload.mjs && tsc --build",
     "test": "node scripts/ensure-spend-payload.mjs && node --experimental-strip-types scripts/check-spend-feed.ts && pnpm --recursive test",
-    "lint": "oxlint alchemy.run.ts stacks && pnpm --recursive lint"
+    "lint": "oxlint alchemy.run.ts stacks && pnpm --recursive lint",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@alchemy.run/frontend-frameworks": "catalog:",
@@ -24,7 +25,9 @@
     "effect": "catalog:"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@oxlint/plugins": "1.89.0",
+    "@playwright/test": "^1.64.1",
     "@types/node": "catalog:",
     "oxlint": "1.89.0",
     "typescript": "catalog:",
