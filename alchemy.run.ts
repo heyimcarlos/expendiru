@@ -15,8 +15,9 @@ export default Alchemy.Stack(
   },
   Effect.gen(function* () {
     const api = yield* Api;
+    const stage = yield* Alchemy.Stage;
 
-    const web = yield* Cloudflare.Website.Foldkit("Web", {
+    const website = {
       rootDir: "packages/frontend",
       main: "src/edge.ts",
       compatibility: { date: "2026-10-28" },
@@ -30,7 +31,21 @@ export default Alchemy.Stack(
       assets: {
         runWorkerFirst: true,
       },
-    });
+    };
+
+    // Only prod owns the custom hostname; preview stages stay on workers.dev.
+    const web = yield* Cloudflare.Website.Foldkit(
+      "Web",
+      stage === "prod"
+        ? {
+            ...website,
+            domain: {
+              name: "expendiru.tryagent.ca",
+              zoneId: "6b062010219e582b6e8c5f8ab436430b",
+            },
+          }
+        : website,
+    );
 
     const github = yield* GitHub.GitHubEnv;
 
