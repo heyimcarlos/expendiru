@@ -50,26 +50,27 @@ const expectCents = (key: string, cents: number) => {
   }
 };
 
-if (feed.transactions.length !== 789) {
-  console.error(`expected 789 transactions, got ${feed.transactions.length}`);
+if (feed.transactions.length !== 830) {
+  console.error(`expected 830 transactions, got ${feed.transactions.length}`);
   process.exitCode = 1;
 }
 
-expectCents("carlos_personal", 1_144_448);
-expectCents("maria_personal", 598_499);
-expectCents("household", 385_143);
-expectCents("together", 238_739);
-expectCents("move_oneoffs", 157_440);
+expectCents("carlos_personal", 642_308);
+expectCents("maria_personal", 912_583);
+expectCents("household", 536_715);
+expectCents("together", 603_864);
+// Move one-offs are counts_toward_budget=no in the 2026-10-31 feed,
+// so the default filter leaves them out.
 
 const outflow = totalOutflowCents(queried.transactions);
 
-if (outflow !== 2_524_269) {
-  console.error(`expected $25,242.69 out, got ${outflow} cents`);
+if (outflow !== 2_695_470) {
+  console.error(`expected $26,954.70 out, got ${outflow} cents`);
   process.exitCode = 1;
 }
 
 const merchantNames = bars.map((bar) => bar.label);
-const expectedMerchants = ["Amazon", "Farm Boy", "Uber Eats", "BorderPass", "Felix"];
+const expectedMerchants = ["Remitly", "Farm Boy", "Uber Eats", "BorderPass", "Felix"];
 
 expectedMerchants.forEach((name, index) => {
   const label = merchantNames[index] ?? "";

@@ -35,16 +35,28 @@ def main() -> None:
     period_label = f"{['','January','February','March','April','May','June','July','August','September','October','November','December'][month]} {year}"
     as_of_label = f"{day} {['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][month]} {year}"
 
-    oct_spend: dict[str, float] = defaultdict(float)
-    for t in txs:
-        if t.get("counts_toward_budget") != "yes":
-            continue
-        if not str(t.get("date", "")).startswith(month_prefix):
-            continue
-        amt = float(t["amount"])
-        if amt >= 0:
-            continue
-        oct_spend[t.get("budget_bucket") or "uncategorized"] += -amt
+    # Net spend per bucket for the as_of month. Prefer the feed's own
+    # summary (bucket rules match daily_buckets.py, refunds and
+    # user-reported reimbursements already netted). Fall back to summing
+    # signed amounts so positive rows (refunds) reduce spend.
+    by_month = summary.get("spend_by_bucket_month") or {}
+    oct_close = summary.get("october_close") or {}
+    if month_prefix in by_month:
+        month_spend: dict[str, float] = {k: float(v) for k, v in by_month[month_prefix].items()}
+        spend_source = f"summary.spend_by_bucket_month[{month_prefix}]"
+    elif month_prefix == "2026-10" and oct_close.get("buckets"):
+        month_spend = {k: float(v) for k, v in oct_close["buckets"].items()}
+        spend_source = "summary.october_close.buckets"
+    else:
+        month_spend = defaultdict(float)
+        for t in txs:
+            if t.get("counts_toward_budget") != "yes":
+                continue
+            if not str(t.get("date", "")).startswith(month_prefix):
+                continue
+            month_spend[t.get("budget_bucket") or "uncategorized"] += -float(t["amount"])
+        spend_source = "transactions.json signed net"
+    print(f"bucket spend from {spend_source}")
 
     bucket_budget = {b["id"]: b["monthly"] for b in budget["buckets"]}
     # Liquid rainy-day cash only. Carlos savings and the Wealthsimple TFSA
@@ -87,7 +99,7 @@ def main() -> None:
                 "id": dom,
                 "name": label,
                 "budget": cad(bucket_budget[feed_id]),
-                "spent": cad(oct_spend.get(feed_id, 0.0)),
+                "spent": cad(month_spend.get(feed_id, 0.0)),
             }
             for dom, feed_id, label in BUCKET_MAP
         ],
