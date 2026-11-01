@@ -20,11 +20,11 @@ Preconditions:
 - Doctor reports the fixture server at `http://127.0.0.1:4173`.
 - On the stub, six rows match the default filter, so there is one page.
 
-- **Read the pager.** Under the table named `Transactions`, the status reads `1–6 of 6`. `Previous` and `Next` are disabled.
+- **Read the pager.** Run `node scripts/verify-expendiru.mjs drive pager`. Under the table named `Transactions`, the status reads `1–6 of 6`. `Previous` and `Next` are disabled.
 - **Reset on filter.** Choose a pie slice. The pager follows the shorter list and stays on the first page.
 - **Proof.** Screenshot the table and pager at 390px. The status text and both buttons are inside the viewport.
 
 ## Gotchas
 
 - The stub cannot show a second page. A list longer than 25 rows is required before `Next` enables. Do not shrink the page size to force a second page.
-- This drive is not wrapped by `verify-expendiru.mjs drive` yet. Do not mark it verified because the pie-select screenshots include the pager.
+- `node scripts/verify-expendiru.mjs drive pager` is the stub check. It does not click Next, because the stub has one page. A longer list is covered by the Scene test that builds 30 rows.

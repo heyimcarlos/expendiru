@@ -26,6 +26,17 @@
     "sort-imports": [
       "error",
       { "ignoreDeclarationSort": true, "ignoreCase": false }
+    ],
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["@expendiru/backend", "@expendiru/backend/**"],
+            "message": "The Foldkit page imports domain and api contracts, not the Worker."
+          }
+        ]
+      }
     ]
   },
   "ignorePatterns": ["dist/", "node_modules/", "**/*.d.ts", "vite.config.ts", "vitest.config.ts"]

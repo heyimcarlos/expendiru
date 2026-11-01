@@ -6,20 +6,20 @@ import { Message } from "./message.ts";
 
 it.effect("loads the fixture when the api url is absent", () =>
   Effect.gen(function* () {
-    const command = LoadSnapshot();
+    const command = LoadSnapshot({ generation: 0 });
     const message = yield* command.effect;
     expect(message).toEqual(
-      Message.LoadedSnapshot({ snapshot: householdFixture }),
+      Message.LoadedSnapshot({ snapshot: householdFixture, generation: 0 }),
     );
   }),
 );
 
 it.effect("loads the spend stub when the api url is absent", () =>
   Effect.gen(function* () {
-    const command = LoadSpend();
+    const command = LoadSpend({ generation: 4 });
     const message = yield* command.effect;
 
-    expect(message).toEqual(Message.LoadedSpend({ feed: spendStub }));
+    expect(message).toEqual(Message.LoadedSpend({ feed: spendStub, generation: 4 }));
   }),
 );
 

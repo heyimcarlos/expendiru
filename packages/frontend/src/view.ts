@@ -1,6 +1,7 @@
 import type { PaceStanding } from "@expendiru/domain";
 import { Button } from "@foldkit/ui";
 import type { Document, Html, HtmlBuilder } from "foldkit/html";
+import { MAIN_ID, SKIP_LINK_ID, SNAPSHOT_RETRY_ID, SPEND_ID } from "./focus.ts";
 import { Message } from "./message.ts";
 import { Model, Refresh } from "./model.ts";
 import {
@@ -170,7 +171,7 @@ const replayButton = (h: HtmlBuilder<Message>): Html =>
       onClick: Message.ClickedReplay(),
       toView: (attributes) =>
         h.button(
-          [...attributes.button, ...styleAttributes(h, stylex.props(styles.button))],
+          [...attributes.button, ...styleAttributes(h, stylex.props(styles.button, styles.hitTarget))],
           ["replay the month"],
         ),
     },
@@ -183,7 +184,11 @@ const retryButton = (h: HtmlBuilder<Message>): Html =>
       onClick: Message.ClickedRetry(),
       toView: (attributes) =>
         h.button(
-          [...attributes.button, ...styleAttributes(h, stylex.props(styles.button))],
+          [
+            h.Id(SNAPSHOT_RETRY_ID),
+            ...attributes.button,
+            ...styleAttributes(h, stylex.props(styles.button, styles.hitTarget)),
+          ],
           ["try the api again"],
         ),
     },
@@ -201,6 +206,7 @@ const footerCopy = (source: Model["snapshot"]["source"]): string => {
 const noticeView = (refresh: Refresh, h: HtmlBuilder<Message>): Html =>
   Refresh.match(refresh, {
     Idle: () => h.empty,
+    Loading: () => h.empty,
     Failed: ({ error }) =>
       h.div([...styleAttributes(h, stylex.props(styles.notice))], [
         h.p(
@@ -211,55 +217,132 @@ const noticeView = (refresh: Refresh, h: HtmlBuilder<Message>): Html =>
       ]),
   });
 
-export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
+const skeletonLine = (key: string, h: HtmlBuilder<Message>): Html =>
+  h.div([
+    h.Key(key),
+    ...styleAttributes(h, stylex.props(styles.skeletonLine)),
+  ]);
+
+const snapshotSkeleton = (h: HtmlBuilder<Message>): Html =>
+  h.section(
+    [
+      h.AriaBusy(true),
+      ...styleAttributes(h, stylex.props(styles.shell)),
+    ],
+    [
+      h.h2([...styleAttributes(h, stylex.props(styles.heading))], ["Household"]),
+      h.p(
+        [...styleAttributes(h, stylex.props(styles.lede))],
+        ["Loading the household snapshot."],
+      ),
+      skeletonLine("snapshot-a", h),
+      skeletonLine("snapshot-b", h),
+      skeletonLine("snapshot-c", h),
+    ],
+  );
+
+const householdSections = (model: Model, h: HtmlBuilder<Message>): ReadonlyArray<Html> =>
+  Refresh.match(model.refresh, {
+    Loading: () => [snapshotSkeleton(h)],
+    Idle: () => readyHousehold(model, h),
+    Failed: () => readyHousehold(model, h),
+  });
+
+const readyHousehold = (model: Model, h: HtmlBuilder<Message>): ReadonlyArray<Html> => {
   const presented = presentHousehold(model.snapshot);
   const fund = model.snapshot.emergencyFund;
 
-  return {
-    title: "Expendiru",
-    body: h.main([...styleAttributes(h, stylex.props(styles.page))], [
-      h.section([...styleAttributes(h, stylex.props(styles.shell))], [
-        h.p([...styleAttributes(h, stylex.props(styles.eyebrow))], ["Toronto household"]),
-        h.h1([...styleAttributes(h, stylex.props(styles.title))], ["Expendiru"]),
-        h.p([...styleAttributes(h, stylex.props(styles.lede))], [presented.lede]),
-        h.div([...styleAttributes(h, stylex.props(styles.nav))], [replayButton(h)]),
-        noticeView(model.refresh, h),
-      ]),
-      spendView(model, h),
-      h.section([...styleAttributes(h, stylex.props(styles.shell))], [
-        h.h2([...styleAttributes(h, stylex.props(styles.heading))], ["Emergency fund"]),
-        h.p(
-          [...styleAttributes(h, stylex.props(styles.lede))],
-          ["Cash set aside before anything else gets spent."],
-        ),
-        emergencyView(presented, fund.saved.cents, fund.target.cents, h),
-      ]),
-      h.section([...styleAttributes(h, stylex.props(styles.shell))], [
-        h.h2(
-          [...styleAttributes(h, stylex.props(styles.heading))],
-          ["Room left on the Visas"],
-        ),
-        h.p(
-          [...styleAttributes(h, stylex.props(styles.lede))],
-          ["Placeholder names only. No card numbers."],
-        ),
-        h.div(
-          [...styleAttributes(h, stylex.props(styles.gridTwo))],
-          presented.cards.map((item) => cardView(item, h)),
-        ),
-      ]),
-      h.section([...styleAttributes(h, stylex.props(styles.shell))], [
-        h.h2([...styleAttributes(h, stylex.props(styles.heading))], ["Buckets vs pace"]),
-        h.p([...styleAttributes(h, stylex.props(styles.lede))], [presented.paceCaption]),
-        h.div(
-          [...styleAttributes(h, stylex.props(styles.gridBuckets))],
-          presented.buckets.map((bucket) => bucketView(bucket, h)),
-        ),
-      ]),
+  return [
+    h.section([...styleAttributes(h, stylex.props(styles.shell))], [
+      h.h2([...styleAttributes(h, stylex.props(styles.heading))], ["Emergency fund"]),
       h.p(
-        [...styleAttributes(h, stylex.props(styles.footer))],
-        [footerCopy(model.snapshot.source)],
+        [...styleAttributes(h, stylex.props(styles.lede))],
+        ["Cash set aside before anything else gets spent."],
+      ),
+      emergencyView(presented, fund.saved.cents, fund.target.cents, h),
+    ]),
+    h.section([...styleAttributes(h, stylex.props(styles.shell))], [
+      h.h2(
+        [...styleAttributes(h, stylex.props(styles.heading))],
+        ["Room left on the Visas"],
+      ),
+      h.p(
+        [...styleAttributes(h, stylex.props(styles.lede))],
+        ["Placeholder names only. No card numbers."],
+      ),
+      h.div(
+        [...styleAttributes(h, stylex.props(styles.gridTwo))],
+        presented.cards.map((item) => cardView(item, h)),
       ),
     ]),
+    h.section([...styleAttributes(h, stylex.props(styles.shell))], [
+      h.h2([...styleAttributes(h, stylex.props(styles.heading))], ["Buckets vs pace"]),
+      h.p([...styleAttributes(h, stylex.props(styles.lede))], [presented.paceCaption]),
+      h.div(
+        [...styleAttributes(h, stylex.props(styles.gridBuckets))],
+        presented.buckets.map((bucket) => bucketView(bucket, h)),
+      ),
+    ]),
+    h.p(
+      [...styleAttributes(h, stylex.props(styles.footer))],
+      [footerCopy(model.snapshot.source)],
+    ),
+  ];
+};
+
+export const view = (model: Model, h: HtmlBuilder<Message>): Document => {
+  const presented = presentHousehold(model.snapshot);
+
+  return {
+    title: "Expendiru",
+    body: h.main(
+      [
+        h.Id(MAIN_ID),
+        h.Tabindex(-1),
+        ...styleAttributes(h, stylex.props(styles.page)),
+      ],
+      [
+        h.a(
+          [
+            h.Id(SKIP_LINK_ID),
+            h.Href(`#${SPEND_ID}`),
+            ...styleAttributes(h, stylex.props(styles.skipLink)),
+          ],
+          ["Skip to spending"],
+        ),
+        h.section([...styleAttributes(h, stylex.props(styles.shell))], [
+          h.p([...styleAttributes(h, stylex.props(styles.eyebrow))], ["Toronto household"]),
+          h.h1([...styleAttributes(h, stylex.props(styles.title))], ["Expendiru"]),
+          h.p([...styleAttributes(h, stylex.props(styles.lede))], [presented.lede]),
+          model.unknownPath
+            ? h.p(
+                [...styleAttributes(h, stylex.props(styles.noticeText))],
+                ["That address is not a household page."],
+              )
+            : h.empty,
+          model.unknownPath
+            ? Button.view(
+                {
+                  type: "button",
+                  onClick: Message.ClickedHome(),
+                  toView: (attributes) =>
+                    h.button(
+                      [
+                        ...attributes.button,
+                        ...styleAttributes(h, stylex.props(styles.button, styles.hitTarget)),
+                      ],
+                      ["Back to spending"],
+                    ),
+                },
+                h,
+              )
+            : h.empty,
+          h.div([...styleAttributes(h, stylex.props(styles.nav))], [replayButton(h)]),
+          noticeView(model.refresh, h),
+        ]),
+        spendView(model, h),
+        ...householdSections(model, h),
+      ],
+    ),
   };
 };

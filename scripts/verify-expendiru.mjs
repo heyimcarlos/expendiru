@@ -267,7 +267,7 @@ const drivePieSelect = async () => {
       await sleep(200);
     };
 
-    const first = points.find((point) => point.label === "Show Household") ?? points[0];
+    const first = points.find((point) => point.label.startsWith("Show Household")) ?? points[0];
     const second = points.find((point) => point.label !== first.label) ?? points[1];
     await touch(first);
     const afterFirstScroll = await evaluate("window.scrollY");
@@ -324,6 +324,185 @@ const drivePieSelect = async () => {
   }
 };
 
+const withPage = async ({ width, height, mobile, feature }, run) => {
+  await doctor();
+  mkdirSync(join(evidenceRoot, feature), { recursive: true });
+  const profile = join(runtimeDir, `chrome-${feature}`);
+  rmSync(profile, { recursive: true, force: true });
+  const chrome = spawn(
+    "google-chrome",
+    [
+      "--headless=new",
+      "--disable-gpu",
+      "--hide-scrollbars",
+      `--user-data-dir=${profile}`,
+      "--remote-debugging-port=9223",
+      `--window-size=${width},${height}`,
+      "about:blank",
+    ],
+    { stdio: "ignore" },
+  );
+  writeFileSync(join(runtimeDir, "chrome.pid"), String(chrome.pid));
+
+  try {
+    const page = await connectChrome(chrome);
+    const socket = new WebSocket(page.webSocketDebuggerUrl);
+    let nextId = 0;
+    const pending = new Map();
+
+    socket.addEventListener("message", (event) => {
+      const message = JSON.parse(event.data);
+      const waiter = pending.get(message.id);
+
+      if (waiter !== undefined) {
+        pending.delete(message.id);
+        waiter(message);
+      }
+    });
+    await new Promise((resolve) => socket.addEventListener("open", resolve));
+
+    const send = (method, params = {}) =>
+      new Promise((resolve, reject) => {
+        const id = nextId;
+        nextId += 1;
+        pending.set(id, (message) => {
+          if (message.error !== undefined) {
+            reject(new Error(`${method}: ${JSON.stringify(message.error)}`));
+            return;
+          }
+
+          resolve(message.result);
+        });
+        socket.send(JSON.stringify({ id, method, params }));
+      });
+
+    const evaluate = async (expression) => {
+      const result = await send("Runtime.evaluate", {
+        expression,
+        returnByValue: true,
+        awaitPromise: true,
+      });
+
+      if (result.exceptionDetails !== undefined) {
+        throw new Error(JSON.stringify(result.exceptionDetails));
+      }
+
+      return result.result.value;
+    };
+
+    await send("Page.enable");
+    await send("Runtime.enable");
+    await send("Emulation.setDeviceMetricsOverride", {
+      width,
+      height,
+      deviceScaleFactor: 1,
+      mobile,
+    });
+
+    if (mobile) {
+      await send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
+    }
+
+    await send("Page.navigate", { url });
+    await evaluate(`new Promise((resolve) => {
+      const started = Date.now();
+      const tick = () => {
+        if (document.body?.innerText.includes("6 transactions") || Date.now() - started > 8000) {
+          resolve(true);
+          return;
+        }
+        setTimeout(tick, 40);
+      };
+      tick();
+    })`);
+
+    const shot = async (name) => {
+      const image = await send("Page.captureScreenshot", { format: "png" });
+      const path = join(evidenceRoot, feature, name);
+      writeFileSync(path, Buffer.from(image.data, "base64"));
+      return path;
+    };
+
+    const result = await run({ evaluate, shot, send });
+    writeFileSync(join(evidenceRoot, feature, "result.json"), JSON.stringify(result, null, 2));
+    console.log(JSON.stringify(result, null, 2));
+    socket.close();
+    return result;
+  } finally {
+    chrome.kill();
+    rmSync(join(runtimeDir, "chrome.pid"), { force: true });
+  }
+};
+
+const drivePager = async () => {
+  const result = await withPage(
+    { width: 390, height: 844, mobile: true, feature: "pager" },
+    async ({ evaluate, shot }) => {
+      await evaluate(`document.querySelector("#spend")?.scrollIntoView({ block: "start" })`);
+      await sleep(150);
+      const shotPath = await shot("table.png");
+      const status = await evaluate(`document.querySelector("#spend-page-status")?.textContent ?? ""`);
+      const disabled = await evaluate(`({
+        previous: document.querySelector("#spend-page-previous")?.disabled ?? null,
+        next: document.querySelector("#spend-page-next")?.disabled ?? null,
+      })`);
+
+      return { feature: "pager", url, status, disabled, shotPath };
+    },
+  );
+
+  if (result.status !== "1–6 of 6" || result.disabled.previous !== true || result.disabled.next !== true) {
+    throw new Error("pager failed");
+  }
+};
+
+const driveA11y = async () => {
+  const result = await withPage(
+    { width: 390, height: 844, mobile: true, feature: "a11y" },
+    async ({ evaluate, shot, send }) => {
+      const before = await evaluate(`({
+        skip: document.querySelector("#skip-to-spend")?.textContent ?? "",
+        live: document.querySelector("#spend-status")?.getAttribute("aria-live"),
+        atomic: document.querySelector("#spend-status")?.getAttribute("aria-atomic"),
+        linePressed: document.querySelector("#spend-chart-line")?.getAttribute("aria-pressed"),
+        targets: ["#spend-chart-pie", "#spend-chart-bar", "#spend-chart-line", "#spend-page-next", "#spend-person"].map((selector) => {
+          const node = document.querySelector(selector);
+          const rect = node?.getBoundingClientRect();
+          return { selector, height: rect?.height ?? 0, width: rect?.width ?? 0 };
+        }),
+        edges: {
+          scrollWidth: document.documentElement.scrollWidth,
+          clientWidth: document.documentElement.clientWidth,
+        },
+      })`);
+      await send("Runtime.evaluate", {
+        expression: `document.querySelector("#spend-chart-line")?.focus()`,
+      });
+      await send("Input.dispatchKeyEvent", { type: "keyDown", key: "ArrowLeft", code: "ArrowLeft", windowsVirtualKeyCode: 37 });
+      await send("Input.dispatchKeyEvent", { type: "keyUp", key: "ArrowLeft", code: "ArrowLeft", windowsVirtualKeyCode: 37 });
+      await sleep(200);
+      const afterKey = await evaluate(`document.querySelector("#spend-chart-bar")?.getAttribute("aria-pressed")`);
+      const shotPath = await shot("mobile.png");
+
+      return { feature: "a11y", url, before, afterKey, shotPath };
+    },
+  );
+
+  const short = result.before.targets.filter((target) => target.height < 44 || target.width < 44);
+
+  if (
+    result.before.skip !== "Skip to spending" ||
+    result.before.live !== "polite" ||
+    result.before.atomic !== "true" ||
+    result.before.linePressed !== "true" ||
+    result.afterKey !== "true" ||
+    short.length > 0 ||
+    result.before.edges.scrollWidth > result.before.edges.clientWidth + 1
+  ) {
+    throw new Error(`a11y failed ${JSON.stringify({ short, afterKey: result.afterKey })}`);
+  }
+};
+
 const cleanup = () => {
   const chromePidPath = join(runtimeDir, "chrome.pid");
 
@@ -357,11 +536,17 @@ try {
   } else if (command === "doctor") {
     await doctor();
   } else if (command === "drive") {
-    if (process.argv[3] !== "pie-select") {
-      throw new Error("drive currently proves pie-select");
-    }
+    const feature = process.argv[3];
 
-    await drivePieSelect();
+    if (feature === "pie-select") {
+      await drivePieSelect();
+    } else if (feature === "pager") {
+      await drivePager();
+    } else if (feature === "a11y") {
+      await driveA11y();
+    } else {
+      throw new Error("drive pie-select, pager, or a11y");
+    }
   } else if (command === "cleanup") {
     cleanup();
   } else {
